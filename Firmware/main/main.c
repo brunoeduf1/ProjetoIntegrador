@@ -6,7 +6,6 @@
 #include "esp_system.h"
 #include "esp_spi_flash.h"
 #include <esp_http_server.h>
-
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "freertos/event_groups.h"
@@ -18,6 +17,20 @@
 #include <lwip/sys.h>
 #include <lwip/api.h>
 #include <lwip/netdb.h>
+//SPIFFS
+#include <sys/unistd.h>
+#include <sys/stat.h>
+#include "esp_err.h"
+#include "esp_spiffs.h"
+//Take picture
+//#include <esp_system.h>
+//#include <nvs_flash.h>
+#include <sys/param.h>
+//#include <string.h>
+
+//#include "freertos/FreeRTOS.h"
+//#include "freertos/task.h"
+#include "esp_camera.h"
 
 #define LED_PIN 4
 
@@ -202,8 +215,212 @@ httpd_handle_t setup_server(void)
     return server;
 }
 
+//SPIFFS
+
+void init_spiffs()
+{
+	 ESP_LOGI(TAG, "Initializing SPIFFS");
+
+	    esp_vfs_spiffs_conf_t conf = {
+	      .base_path = "/spiffs",
+	      .partition_label = NULL,
+	      .max_files = 5,
+	      .format_if_mount_failed = true
+	    };
+
+	    // Use settings defined above to initialize and mount SPIFFS filesystem.
+	    // Note: esp_vfs_spiffs_register is an all-in-one convenience function.
+	    esp_err_t ret = esp_vfs_spiffs_register(&conf);
+
+	    if (ret != ESP_OK) {
+	        if (ret == ESP_FAIL) {
+	            ESP_LOGE(TAG, "Failed to mount or format filesystem");
+	        } else if (ret == ESP_ERR_NOT_FOUND) {
+	            ESP_LOGE(TAG, "Failed to find SPIFFS partition");
+	        } else {
+	            ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+	        }
+	        return;
+	    }
+
+	    size_t total = 0, used = 0;
+	    ret = esp_spiffs_info(conf.partition_label, &total, &used);
+	    if (ret != ESP_OK) {
+	        ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s). Formatting...", esp_err_to_name(ret));
+	        esp_spiffs_format(conf.partition_label);
+	        return;
+	    } else {
+	        ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
+	    }
+
+	    // Check consistency of reported partiton size info.
+	    if (used > total) {
+	        ESP_LOGW(TAG, "Number of used bytes cannot be larger than total. Performing SPIFFS_check().");
+	        ret = esp_spiffs_check(conf.partition_label);
+	        // Could be also used to mend broken files, to clean unreferenced pages, etc.
+	        // More info at https://github.com/pellepl/spiffs/wiki/FAQ#powerlosses-contd-when-should-i-run-spiffs_check
+	        if (ret != ESP_OK) {
+	            ESP_LOGE(TAG, "SPIFFS_check() failed (%s)", esp_err_to_name(ret));
+	            return;
+	        } else {
+	            ESP_LOGI(TAG, "SPIFFS_check() successful");
+	        }
+	    }
+
+	    // Use POSIX and C standard library functions to work with files.
+	    // First create a file.
+	    ESP_LOGI(TAG, "Opening file");
+	    FILE* f = fopen("/spiffs/hello.txt", "w");
+	    if (f == NULL) {
+	        ESP_LOGE(TAG, "Failed to open file for writing");
+	        return;
+	    }
+	    fprintf(f, "Hello World!\n");
+	    fclose(f);
+	    ESP_LOGI(TAG, "File written");
+
+	    // Check if destination file exists before renaming
+	    struct stat st;
+	    if (stat("/spiffs/foo.txt", &st) == 0) {
+	        // Delete it if it exists
+	        unlink("/spiffs/foo.txt");
+	    }
+
+	    // Rename original file
+	    ESP_LOGI(TAG, "Renaming file");
+	    if (rename("/spiffs/hello.txt", "/spiffs/foo.txt") != 0) {
+	        ESP_LOGE(TAG, "Rename failed");
+	        return;
+	    }
+
+	    // Open renamed file for reading
+	    ESP_LOGI(TAG, "Reading file");
+	    f = fopen("/spiffs/foo.txt", "r");
+	    if (f == NULL) {
+	        ESP_LOGE(TAG, "Failed to open file for reading");
+	        return;
+	    }
+	    char line[64];
+	    fgets(line, sizeof(line), f);
+	    fclose(f);
+	    // strip newline
+	    char* pos = strchr(line, '\n');
+	    if (pos) {
+	        *pos = '\0';
+	    }
+	    ESP_LOGI(TAG, "Read from file: '%s'", line);
+
+	    // All done, unmount partition and disable SPIFFS
+	    esp_vfs_spiffs_unregister(conf.partition_label);
+	    ESP_LOGI(TAG, "SPIFFS unmounted");
+}
+
+// Take picture
+
+#define BOARD_ESP32CAM_AITHINKER
+
+#ifndef portTICK_RATE_MS
+#define portTICK_RATE_MS portTICK_PERIOD_MS
+#endif
+
+#ifdef BOARD_ESP32CAM_AITHINKER
+
+#define CAM_PIN_PWDN 32
+#define CAM_PIN_RESET -1 //software reset will be performed
+#define CAM_PIN_XCLK 0
+#define CAM_PIN_SIOD 26
+#define CAM_PIN_SIOC 27
+
+#define CAM_PIN_D7 35
+#define CAM_PIN_D6 34
+#define CAM_PIN_D5 39
+#define CAM_PIN_D4 36
+#define CAM_PIN_D3 21
+#define CAM_PIN_D2 19
+#define CAM_PIN_D1 18
+#define CAM_PIN_D0 5
+#define CAM_PIN_VSYNC 25
+#define CAM_PIN_HREF 23
+#define CAM_PIN_PCLK 22
+
+#endif
+
+static camera_config_t camera_config = {
+		 	 	 .pin_pwdn  = CAM_PIN_PWDN,
+		        .pin_reset = CAM_PIN_RESET,
+		        .pin_xclk = CAM_PIN_XCLK,
+		        .pin_sccb_sda = CAM_PIN_SIOD,
+		        .pin_sccb_scl = CAM_PIN_SIOC,
+
+		        .pin_d7 = CAM_PIN_D7,
+		        .pin_d6 = CAM_PIN_D6,
+		        .pin_d5 = CAM_PIN_D5,
+		        .pin_d4 = CAM_PIN_D4,
+		        .pin_d3 = CAM_PIN_D3,
+		        .pin_d2 = CAM_PIN_D2,
+		        .pin_d1 = CAM_PIN_D1,
+		        .pin_d0 = CAM_PIN_D0,
+		        .pin_vsync = CAM_PIN_VSYNC,
+		        .pin_href = CAM_PIN_HREF,
+		        .pin_pclk = CAM_PIN_PCLK,
+
+		        .xclk_freq_hz = 20000000,
+		        .ledc_timer = LEDC_TIMER_0,
+		        .ledc_channel = LEDC_CHANNEL_0,
+
+		        .pixel_format = PIXFORMAT_JPEG,
+		        .frame_size = FRAMESIZE_VGA,
+
+		        .jpeg_quality = 10,
+		        .fb_count = 1,
+		        .grab_mode = CAMERA_GRAB_WHEN_EMPTY};
+
+static esp_err_t init_camera()
+{
+	gpio_config_t gpio_pwr_config;
+	gpio_pwr_config.pin_bit_mask = (1ULL << 32);
+	gpio_pwr_config.mode = GPIO_MODE_OUTPUT;
+	gpio_pwr_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
+	gpio_pwr_config.pull_up_en = GPIO_PULLUP_DISABLE;
+	gpio_pwr_config.intr_type = GPIO_INTR_DISABLE;
+	gpio_config(&gpio_pwr_config);
+	gpio_set_level(32,0);
+	vTaskDelay(10/ portTICK_PERIOD_MS);
+
+	esp_err_t err = esp_camera_init(&camera_config);
+
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Camera Init Failed");
+        return err;
+    }
+
+    return ESP_OK;
+}
+
+
 void app_main()
 {
+	//Take picture
+    if(ESP_OK != init_camera()) {
+        return;
+    }
+
+    while (1)
+    {
+        ESP_LOGI(TAG, "Taking picture...");
+        camera_fb_t *pic = esp_camera_fb_get();
+
+        // use pic->buf to access the image
+        ESP_LOGI(TAG, "Picture taken! Its size was: %zu bytes", pic->len);
+        esp_camera_fb_return(pic);
+
+        vTaskDelay(5000 / portTICK_RATE_MS);
+    }
+
+	// Initialize SPIFFS
+	init_spiffs();
+
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
