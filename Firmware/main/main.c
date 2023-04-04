@@ -31,6 +31,11 @@
 //#include "freertos/FreeRTOS.h"
 //#include "freertos/task.h"
 #include "esp_camera.h"
+#include "driver/sdmmc_host.h"
+#include "driver/sdmmc_defs.h"
+#include "sdmmc_cmd.h"
+#include "esp_vfs_fat.h"
+#include "driver/gpio.h"
 
 #define LED_PIN 4
 
@@ -216,6 +221,16 @@ httpd_handle_t setup_server(void)
 }
 
 //SPIFFS
+// juntando as coisas
+// ledPin refers to ESP32-CAM GPIO 4 (flashlight)
+#define FLASH_GPIO_NUM 4
+
+// Photo File Name to save in SPIFFS
+#define FILE_PHOTO "/photo.jpg"
+
+bool takeNewPhoto = false;
+bool workInProgress = false;
+bool flashEnabled = false;
 
 void init_spiffs()
 {
@@ -267,51 +282,52 @@ void init_spiffs()
 	        }
 	    }
 
-	    // Use POSIX and C standard library functions to work with files.
-	    // First create a file.
-	    ESP_LOGI(TAG, "Opening file");
-	    FILE* f = fopen("/spiffs/hello.txt", "w");
-	    if (f == NULL) {
-	        ESP_LOGE(TAG, "Failed to open file for writing");
-	        return;
-	    }
-	    fprintf(f, "Hello World!\n");
-	    fclose(f);
-	    ESP_LOGI(TAG, "File written");
+		TAG = "capturePhotoSave";
+	    if (workInProgress == false)
+	    {
+	    	workInProgress = true;
+	    	bool ok = 0;
+	    	camera_fb_t *fb = NULL;
+	    	do{
+	    		ESP_LOGI(TAG, "Taking picture...");
 
-	    // Check if destination file exists before renaming
-	    struct stat st;
-	    if (stat("/spiffs/foo.txt", &st) == 0) {
-	        // Delete it if it exists
-	        unlink("/spiffs/foo.txt");
-	    }
+	    		fb = esp_camera_fb_get();
+			    if (!fb)
+			    {
+				  ESP_LOGI(TAG,"Camera capture failed");
+				  workInProgress = false;
+				  return;
+			    }
 
-	    // Rename original file
-	    ESP_LOGI(TAG, "Renaming file");
-	    if (rename("/spiffs/hello.txt", "/spiffs/foo.txt") != 0) {
-	        ESP_LOGE(TAG, "Rename failed");
-	        return;
-	    }
+			    ESP_LOGI(TAG,"Camera capture ok");
+			    ESP_LOGI(TAG,"Picture file name: %s\n", FILE_PHOTO);
+			    FILE* file = fopen("/spiffs/photo.jpg", "w");
+			    if (file == NULL) {
+			        ESP_LOGE(TAG, "Failed to open file in writing mode");
+			        return;
+			    }
+			      else
+			      {
+			    	fwrite(fb->buf, 1, fb->len, file); // payload (image), payload length
+			        ESP_LOGI(TAG,"The picture has been saved in ");
+			        ESP_LOGI(TAG,FILE_PHOTO);
+			        ESP_LOGI(TAG," - Size: ");
+			        //ESP_LOGI(TAG," - Size: %f" ,fb->len);
+			        ESP_LOGI(TAG," bytes");
+			        ok = true;
+			      }
+			      // Close the file
+			      fclose(file);
+			      esp_camera_fb_return(fb);
 
-	    // Open renamed file for reading
-	    ESP_LOGI(TAG, "Reading file");
-	    f = fopen("/spiffs/foo.txt", "r");
-	    if (f == NULL) {
-	        ESP_LOGE(TAG, "Failed to open file for reading");
-	        return;
+			      // check if file has been correctly saved in SPIFFS
+			      //ok = checkPhoto(SPIFFS);
+
+	    	}while(!ok);
 	    }
-	    char line[64];
-	    fgets(line, sizeof(line), f);
-	    fclose(f);
-	    // strip newline
-	    char* pos = strchr(line, '\n');
-	    if (pos) {
-	        *pos = '\0';
-	    }
-	    ESP_LOGI(TAG, "Read from file: '%s'", line);
 
 	    // All done, unmount partition and disable SPIFFS
-	    esp_vfs_spiffs_unregister(conf.partition_label);
+	    //esp_vfs_spiffs_unregister(conf.partition_label);
 	    ESP_LOGI(TAG, "SPIFFS unmounted");
 }
 
@@ -330,7 +346,6 @@ void init_spiffs()
 #define CAM_PIN_XCLK 0
 #define CAM_PIN_SIOD 26
 #define CAM_PIN_SIOC 27
-
 #define CAM_PIN_D7 35
 #define CAM_PIN_D6 34
 #define CAM_PIN_D5 39
@@ -398,29 +413,8 @@ static esp_err_t init_camera()
     return ESP_OK;
 }
 
-
 void app_main()
 {
-	//Take picture
-    if(ESP_OK != init_camera()) {
-        return;
-    }
-
-    while (1)
-    {
-        ESP_LOGI(TAG, "Taking picture...");
-        camera_fb_t *pic = esp_camera_fb_get();
-
-        // use pic->buf to access the image
-        ESP_LOGI(TAG, "Picture taken! Its size was: %zu bytes", pic->len);
-        esp_camera_fb_return(pic);
-
-        vTaskDelay(5000 / portTICK_RATE_MS);
-    }
-
-	// Initialize SPIFFS
-	init_spiffs();
-
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
@@ -440,4 +434,12 @@ void app_main()
     led_state = 0;
     ESP_LOGI(TAG, "LED Control Web Server is running ... ...\n");
     setup_server();
+
+	//Take picture
+    if(ESP_OK != init_camera()) {
+        return;
+    }
+
+	// Initialize SPIFFS
+	init_spiffs();
 }
