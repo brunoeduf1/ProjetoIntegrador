@@ -51,11 +51,30 @@ static EventGroupHandle_t s_wifi_event_group;
 
 static int s_retry_num = 0;
 
+static void set_static_ip(esp_netif_t *netif)
+{
+    if (esp_netif_dhcpc_stop(netif) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to stop dhcp client");
+        return;
+    }
+    esp_netif_ip_info_t ip;
+    memset(&ip, 0 , sizeof(esp_netif_ip_info_t));
+    ip.ip.addr = ipaddr_addr("192.168.25.41");
+    ip.netmask.addr = ipaddr_addr("255.255.255.0");
+    ip.gw.addr = ipaddr_addr("192.168.25.1");
+    if (esp_netif_set_ip_info(netif, &ip) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set ip info");
+        return;
+    }
+    ESP_LOGI(TAG, "Success to set static ip: %s", "192.168.25.41");
+}
+
 static void event_handler(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data)
 {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
+    	set_static_ip(arg);
         esp_wifi_connect();
     }
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
@@ -88,7 +107,8 @@ void connect_wifi(void)
     ESP_ERROR_CHECK(esp_netif_init());
 
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_create_default_wifi_sta();
+    esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
+    assert(sta_netif);
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -98,12 +118,12 @@ void connect_wifi(void)
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
                                                         ESP_EVENT_ANY_ID,
                                                         &event_handler,
-                                                        NULL,
+														sta_netif,
                                                         &instance_any_id));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
                                                         IP_EVENT_STA_GOT_IP,
                                                         &event_handler,
-                                                        NULL,
+														sta_netif,
                                                         &instance_got_ip));
 
     wifi_config_t wifi_config = {
@@ -221,7 +241,7 @@ httpd_handle_t setup_server(void)
 #define FLASH_GPIO_NUM 4
 
 // Photo File Name to save in SPIFFS
-#define FILE_PHOTO "/photo.jpg"
+#define FILE_PHOTO "photo.jpg"
 
 bool takeNewPhoto = false;
 bool workInProgress = false;
@@ -275,13 +295,11 @@ void init_spiffs()
 		        }
 		    }
 		    // All done, unmount partition and disable SPIFFS
-		    //esp_vfs_spiffs_unregister(conf.partition_label);
 		    ESP_LOGI(TAG, "SPIFFS unmounted");
 }
 
 void capturePhotoSaveSpiffs()
 {
-
 		TAG = "capturePhotoSave";
 	    if (workInProgress == false)
 	    {
@@ -309,25 +327,20 @@ void capturePhotoSaveSpiffs()
 			      else
 			      {
 			    	fwrite(fb->buf, 1, fb->len, file); // payload (image), payload length
-			        ESP_LOGI(TAG,"The picture has been saved in ");
-			        ESP_LOGI(TAG,FILE_PHOTO);
+			        ESP_LOGI(TAG,"The picture has been saved in /spiffs");
 			        ESP_LOGI(TAG," - Size: %d" ,fb->len);
 			        ESP_LOGI(TAG," bytes");
 			        ok = true;
 			      }
-			      // Close the file
+
 			      fclose(file);
 			      esp_camera_fb_return(fb);
-
-			      // check if file has been correctly saved in SPIFFS
-			      //ok = checkPhoto(SPIFFS);
 
 	    	}while(!ok);
 	    }
 }
 
 // Take picture
-
 #define BOARD_ESP32CAM_AITHINKER
 
 #ifndef portTICK_RATE_MS
