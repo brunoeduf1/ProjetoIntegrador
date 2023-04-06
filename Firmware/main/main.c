@@ -156,20 +156,20 @@ esp_err_t send_web_page(httpd_req_t *req)
 
 	FILE* fp = fopen(image_path, "r");
 	if(fp == NULL){
-		ESP_LOGE(TAG, "Não foi possível abrir o arquivo de imagem");
+		ESP_LOGE(TAG, "NÃ£o foi possÃ­vel abrir o arquivo de imagem");
 		return ESP_FAIL;
 	}
 
 	/* Define o tipo MIME da resposta */
 	httpd_resp_set_type(req, image_type);
 
-	/* Define o cabeçalho de comprimento de conteúdo para o tamanho do arquivo de imagem */
+	/* Define o cabeÃ§alho de comprimento de conteÃºdo para o tamanho do arquivo de imagem */
 	fseek(fp, 0L, SEEK_END);
 	size_t content_length = ftell(fp);
 	rewind(fp);
 	httpd_resp_set_hdr(req, "Content-Length", (char*) &content_length);
 
-	/* Enviar conteúdo do arquivo de imagem como parte da resposta HTTP */
+	/* Enviar conteÃºdo do arquivo de imagem como parte da resposta HTTP */
 	char buf[1024];
 	size_t read_len;
 	while((read_len = fread(buf, 1, sizeof(buf), fp)) > 0) {
@@ -231,51 +231,56 @@ void init_spiffs()
 {
 	 ESP_LOGI(TAG, "Initializing SPIFFS");
 
-	    esp_vfs_spiffs_conf_t conf = {
-	      .base_path = "/spiffs",
-	      .partition_label = NULL,
-	      .max_files = 5,
-	      .format_if_mount_failed = true
-	    };
+		    esp_vfs_spiffs_conf_t conf = {
+		      .base_path = "/spiffs",
+		      .partition_label = NULL,
+		      .max_files = 5,
+		      .format_if_mount_failed = true
+		    };
 
-	    // Use settings defined above to initialize and mount SPIFFS filesystem.
-	    // Note: esp_vfs_spiffs_register is an all-in-one convenience function.
-	    esp_err_t ret = esp_vfs_spiffs_register(&conf);
+		    esp_err_t ret = esp_vfs_spiffs_register(&conf);
 
-	    if (ret != ESP_OK) {
-	        if (ret == ESP_FAIL) {
-	            ESP_LOGE(TAG, "Failed to mount or format filesystem");
-	        } else if (ret == ESP_ERR_NOT_FOUND) {
-	            ESP_LOGE(TAG, "Failed to find SPIFFS partition");
-	        } else {
-	            ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
-	        }
-	        return;
-	    }
+		    if (ret != ESP_OK) {
+		        if (ret == ESP_FAIL) {
+		            ESP_LOGE(TAG, "Failed to mount or format filesystem");
+		        } else if (ret == ESP_ERR_NOT_FOUND) {
+		            ESP_LOGE(TAG, "Failed to find SPIFFS partition");
+		        } else {
+		            ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+		        }
+		        return;
+		    }
 
-	    size_t total = 0, used = 0;
-	    ret = esp_spiffs_info(conf.partition_label, &total, &used);
-	    if (ret != ESP_OK) {
-	        ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s). Formatting...", esp_err_to_name(ret));
-	        esp_spiffs_format(conf.partition_label);
-	        return;
-	    } else {
-	        ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
-	    }
+		    size_t total = 0, used = 0;
+		    ret = esp_spiffs_info(conf.partition_label, &total, &used);
+		    if (ret != ESP_OK) {
+		        ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s). Formatting...", esp_err_to_name(ret));
+		        esp_spiffs_format(conf.partition_label);
+		        return;
+		    } else {
+		        ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
+		    }
 
-	    // Check consistency of reported partiton size info.
-	    if (used > total) {
-	        ESP_LOGW(TAG, "Number of used bytes cannot be larger than total. Performing SPIFFS_check().");
-	        ret = esp_spiffs_check(conf.partition_label);
-	        // Could be also used to mend broken files, to clean unreferenced pages, etc.
-	        // More info at https://github.com/pellepl/spiffs/wiki/FAQ#powerlosses-contd-when-should-i-run-spiffs_check
-	        if (ret != ESP_OK) {
-	            ESP_LOGE(TAG, "SPIFFS_check() failed (%s)", esp_err_to_name(ret));
-	            return;
-	        } else {
-	            ESP_LOGI(TAG, "SPIFFS_check() successful");
-	        }
-	    }
+		    // Check consistency of reported partiton size info.
+		    if (used > total) {
+		        ESP_LOGW(TAG, "Number of used bytes cannot be larger than total. Performing SPIFFS_check().");
+		        ret = esp_spiffs_check(conf.partition_label);
+		        // Could be also used to mend broken files, to clean unreferenced pages, etc.
+		        // More info at https://github.com/pellepl/spiffs/wiki/FAQ#powerlosses-contd-when-should-i-run-spiffs_check
+		        if (ret != ESP_OK) {
+		            ESP_LOGE(TAG, "SPIFFS_check() failed (%s)", esp_err_to_name(ret));
+		            return;
+		        } else {
+		            ESP_LOGI(TAG, "SPIFFS_check() successful");
+		        }
+		    }
+		    // All done, unmount partition and disable SPIFFS
+		    //esp_vfs_spiffs_unregister(conf.partition_label);
+		    ESP_LOGI(TAG, "SPIFFS unmounted");
+}
+
+void capturePhotoSaveSpiffs()
+{
 
 		TAG = "capturePhotoSave";
 	    if (workInProgress == false)
@@ -319,10 +324,6 @@ void init_spiffs()
 
 	    	}while(!ok);
 	    }
-
-	    // All done, unmount partition and disable SPIFFS
-	    //esp_vfs_spiffs_unregister(conf.partition_label);
-	    ESP_LOGI(TAG, "SPIFFS unmounted");
 }
 
 // Take picture
@@ -421,19 +422,15 @@ void app_main()
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
     connect_wifi();
 
-    // GPIO initialization
-    //gpio_pad_select_gpio(LED_PIN);
-    gpio_set_direction(LED_PIN, GPIO_MODE_OUTPUT);
-
-    led_state = 0;
-    ESP_LOGI(TAG, "LED Control Web Server is running ... ...\n");
-    setup_server();
-
-	//Take picture
+	// Initialize camera
     if(ESP_OK != init_camera()) {
         return;
     }
 
-	// Initialize SPIFFS
-	init_spiffs();
+	// Initialize SPIFFS and capture photo
+    init_spiffs();
+    capturePhotoSaveSpiffs();
+
+    // Initialize server
+    setup_server();
 }
