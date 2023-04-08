@@ -30,6 +30,16 @@
 #include "sdmmc_cmd.h"
 #include "esp_vfs_fat.h"
 #include "driver/gpio.h"
+#include "page.h"
+
+#include "esp_timer.h"
+#include "img_converters.h"
+
+#define PART_BOUNDARY "123456789000000000000987654321"
+
+static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
+static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
+static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
 #define LED_PIN 4
 
@@ -59,14 +69,14 @@ static void set_static_ip(esp_netif_t *netif)
     }
     esp_netif_ip_info_t ip;
     memset(&ip, 0 , sizeof(esp_netif_ip_info_t));
-    ip.ip.addr = ipaddr_addr("192.168.25.41");
+    ip.ip.addr = ipaddr_addr("192.168.25.42");
     ip.netmask.addr = ipaddr_addr("255.255.255.0");
     ip.gw.addr = ipaddr_addr("192.168.25.1");
     if (esp_netif_set_ip_info(netif, &ip) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set ip info");
         return;
     }
-    ESP_LOGI(TAG, "Success to set static ip: %s", "192.168.25.41");
+    ESP_LOGI(TAG, "Success to set static ip: %s", "192.168.25.42");
 }
 
 static void event_handler(void *arg, esp_event_base_t event_base,
@@ -200,6 +210,82 @@ esp_err_t send_web_page(httpd_req_t *req)
     return ESP_OK;
 }
 
+static esp_err_t capture_handler(httpd_req_t *req){
+    //Serial.println("Capture image");
+    camera_fb_t * fb = NULL;
+    esp_err_t res = ESP_OK;
+    fb = esp_camera_fb_get();
+    if (!fb) {
+        //Serial.println("Camera capture failed");
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+    httpd_resp_set_type(req, "image/jpeg");
+    httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+
+    res = httpd_resp_send(req, (const char *)fb->buf, fb->len);
+    esp_camera_fb_return(fb);
+    return res;
+}
+
+static esp_err_t stream_handler(httpd_req_t *req){
+    camera_fb_t * fb = NULL;
+    esp_err_t res = ESP_OK;
+    size_t _jpg_buf_len = 0;
+    uint8_t * _jpg_buf = NULL;
+    char * part_buf[64];
+
+    res = httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
+    if(res != ESP_OK){
+        return res;
+    }
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    while(true){
+        fb = esp_camera_fb_get();
+        if (!fb) {
+            //Serial.println("Camera capture failed");
+            res = ESP_FAIL;
+        } else {
+
+                if(fb->format != PIXFORMAT_JPEG){
+                    bool jpeg_converted = frame2jpg(fb, 80, &_jpg_buf, &_jpg_buf_len);
+                    esp_camera_fb_return(fb);
+                    fb = NULL;
+                    if(!jpeg_converted){
+                        //Serial.println("JPEG compression failed");
+                        res = ESP_FAIL;
+                    }
+                } else {
+                    _jpg_buf_len = fb->len;
+                    _jpg_buf = fb->buf;
+                }
+             }
+        if(res == ESP_OK){
+            res = httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
+        }
+        if(res == ESP_OK){
+            size_t hlen = snprintf((char *)part_buf, 64, _STREAM_PART, _jpg_buf_len);
+            res = httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
+        }
+        if(res == ESP_OK){
+            res = httpd_resp_send_chunk(req, (const char *)_jpg_buf, _jpg_buf_len);
+        }
+        if(fb){
+            esp_camera_fb_return(fb);
+            fb = NULL;
+            _jpg_buf = NULL;
+        } else if(_jpg_buf){
+            free(_jpg_buf);
+            _jpg_buf = NULL;
+        }
+        if(res != ESP_OK){
+            break;
+        }
+    }
+    return res;
+}
+
 esp_err_t get_req_handler(httpd_req_t *req)
 {
     return send_web_page(req);
@@ -210,10 +296,23 @@ esp_err_t photo_handler(httpd_req_t *req)
     return send_web_page(req);
 }
 
+static esp_err_t page_handler(httpd_req_t *req) {
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    return httpd_resp_send(req, page, sizeof(page));
+}
+
+httpd_uri_t page_uri = {
+    .uri       = "/ts",
+    .method    = HTTP_GET,
+    .handler   = page_handler,
+    .user_ctx  = NULL
+};
+
 httpd_uri_t uri_get = {
     .uri = "/",
     .method = HTTP_GET,
-    .handler = get_req_handler,
+    .handler = stream_handler,
     .user_ctx = NULL};
 
 httpd_uri_t uri_photo = {
@@ -222,14 +321,32 @@ httpd_uri_t uri_photo = {
 	.handler = photo_handler,
     .user_ctx = NULL};
 
+httpd_uri_t capture_uri = {
+    .uri       = "/capture",
+    .method    = HTTP_GET,
+    .handler   = capture_handler,
+    .user_ctx  = NULL
+};
+
 httpd_handle_t setup_server(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     httpd_handle_t server = NULL;
+    httpd_handle_t stream_httpd = NULL;
 
     if (httpd_start(&server, &config) == ESP_OK)
     {
+    	//httpd_register_uri_handler(server, &uri_get);
+    	httpd_register_uri_handler(server, &capture_uri);
         httpd_register_uri_handler(server, &uri_photo);
+        httpd_register_uri_handler(server, &page_uri);
+    }
+
+    config.server_port += 1;
+    config.ctrl_port += 1;
+    ESP_LOGI(TAG, "Starting stream server on port: '%d'\n", config.server_port);
+    if (httpd_start(&stream_httpd, &config) == ESP_OK) {
+        httpd_register_uri_handler(stream_httpd, &uri_get);
     }
 
     return server;
@@ -330,13 +447,16 @@ void capturePhotoSaveSpiffs()
 			        ESP_LOGI(TAG,"The picture has been saved in /spiffs");
 			        ESP_LOGI(TAG," - Size: %d" ,fb->len);
 			        ESP_LOGI(TAG," bytes");
-			        ok = true;
+
 			      }
 
 			      fclose(file);
 			      esp_camera_fb_return(fb);
+			      ok = true;
 
 	    	}while(!ok);
+
+	    	workInProgress = false;
 	    }
 }
 
@@ -369,12 +489,11 @@ void capturePhotoSaveSpiffs()
 #endif
 
 static camera_config_t camera_config = {
-		 	 	 .pin_pwdn  = CAM_PIN_PWDN,
+		 	 	.pin_pwdn  = CAM_PIN_PWDN,
 		        .pin_reset = CAM_PIN_RESET,
 		        .pin_xclk = CAM_PIN_XCLK,
 		        .pin_sccb_sda = CAM_PIN_SIOD,
 		        .pin_sccb_scl = CAM_PIN_SIOC,
-
 		        .pin_d7 = CAM_PIN_D7,
 		        .pin_d6 = CAM_PIN_D6,
 		        .pin_d5 = CAM_PIN_D5,
@@ -386,30 +505,19 @@ static camera_config_t camera_config = {
 		        .pin_vsync = CAM_PIN_VSYNC,
 		        .pin_href = CAM_PIN_HREF,
 		        .pin_pclk = CAM_PIN_PCLK,
-
 		        .xclk_freq_hz = 20000000,
 		        .ledc_timer = LEDC_TIMER_0,
 		        .ledc_channel = LEDC_CHANNEL_0,
-
+				.grab_mode = CAMERA_GRAB_WHEN_EMPTY,
 		        .pixel_format = PIXFORMAT_JPEG,
-		        .frame_size = FRAMESIZE_VGA,
 
+		        .frame_size = FRAMESIZE_QVGA,
 		        .jpeg_quality = 10,
-		        .fb_count = 1,
-		        .grab_mode = CAMERA_GRAB_WHEN_EMPTY};
+		        .fb_count = 2,
+		        };
 
 static esp_err_t init_camera()
 {
-	gpio_config_t gpio_pwr_config;
-	gpio_pwr_config.pin_bit_mask = (1ULL << 32);
-	gpio_pwr_config.mode = GPIO_MODE_OUTPUT;
-	gpio_pwr_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
-	gpio_pwr_config.pull_up_en = GPIO_PULLUP_DISABLE;
-	gpio_pwr_config.intr_type = GPIO_INTR_DISABLE;
-	gpio_config(&gpio_pwr_config);
-	gpio_set_level(32,0);
-	vTaskDelay(10/ portTICK_PERIOD_MS);
-
 	esp_err_t err = esp_camera_init(&camera_config);
 
     if (err != ESP_OK)
@@ -436,14 +544,27 @@ void app_main()
     connect_wifi();
 
 	// Initialize camera
-    if(ESP_OK != init_camera()) {
-        return;
-    }
+    init_camera();
 
-	// Initialize SPIFFS and capture photo
+    sensor_t * s = esp_camera_sensor_get();
+    // initial sensors are flipped vertically and colors are a bit saturated
+    if (s->id.PID == OV3660_PID) {
+      s->set_vflip(s, 1); // flip it back
+      s->set_brightness(s, 1); // up the brightness just a bit
+      s->set_saturation(s, -2); // lower the saturation
+    }
+    // drop down frame size for higher initial frame rate
+    s->set_framesize(s, FRAMESIZE_QVGA);
+
+	// Initialize SPIFFS
     init_spiffs();
-    capturePhotoSaveSpiffs();
 
     // Initialize server
     setup_server();
+
+    //Capture photo
+    //while(1) {
+   //     capturePhotoSaveSpiffs();
+    //    vTaskDelay(1500);
+    //}
 }
