@@ -297,7 +297,7 @@ esp_err_t photo_handler(httpd_req_t *req)
 }
 
 static esp_err_t page_handler(httpd_req_t *req) {
-    httpd_resp_set_type(req, "text/html");
+	httpd_resp_set_type(req, "text/html");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     return httpd_resp_send(req, page, sizeof(page));
 }
