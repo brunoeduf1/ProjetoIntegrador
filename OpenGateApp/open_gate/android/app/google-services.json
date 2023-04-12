@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "368450322273",
+    "project_id": "projetointegrador-9847a",
+    "storage_bucket": "projetointegrador-9847a.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:368450322273:android:12c70bad4b40fb4fcecf20",
+        "android_client_info": {
+          "package_name": "com.example.open_gate"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "368450322273-pgtkjg1f45rqui132vn88uedocdtfk0k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjh_IaL5BtoteVkw4COx0Up5T4llvfjhE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "368450322273-pgtkjg1f45rqui132vn88uedocdtfk0k.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "368450322273-6am45d8282v61r2g1gmiobaukam5v54b.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.openGate"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:368450322273:android:fcbe67266a4067c6cecf20",
+        "android_client_info": {
+          "package_name": "com.example.open_gate_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "368450322273-pgtkjg1f45rqui132vn88uedocdtfk0k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjh_IaL5BtoteVkw4COx0Up5T4llvfjhE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "368450322273-pgtkjg1f45rqui132vn88uedocdtfk0k.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "368450322273-6am45d8282v61r2g1gmiobaukam5v54b.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.openGate"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -31,6 +31,10 @@ nova_imagem_hist = cv2.calcHist([area_nova_imagem_gray], [0], None, [256], [0, 2
 resultado_fechado = cv2.compareHist(portao_fechado_hist, nova_imagem_hist, cv2.HISTCMP_CHISQR)
 resultado_aberto = cv2.compareHist(portao_aberto_hist, nova_imagem_hist, cv2.HISTCMP_CHISQR)
 
+# comparar as imagens usando o método correlation
+resultado_fechado2 = cv2.matchTemplate(portao_fechado_hist, nova_imagem_hist, cv2.TM_CCOEFF_NORMED)
+resultado_aberto2 = cv2.matchTemplate(portao_aberto_hist, nova_imagem_hist, cv2.TM_CCOEFF_NORMED)
+
 # determinar se a nova imagem corresponde a um portão aberto ou fechado
 if resultado_fechado > resultado_aberto:
     print("O portão está aberto")
@@ -39,6 +43,9 @@ else:
 
 print("fechado: ", resultado_fechado)
 print("Aberto: ", resultado_aberto)
+
+print("fechado2: ", resultado_fechado2)
+print("Aberto2: ", resultado_aberto2)
 
 # desenhar um retângulo vermelho na área de comparação
 cv2.rectangle(portao_fechado, (x, y), (x+width, y+height), (0, 0, 255), 2)
