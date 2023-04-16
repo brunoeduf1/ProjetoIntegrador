@@ -4,7 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
-#include "esp_spi_flash.h"
+#include "spi_flash_mmap.h"
 #include <esp_http_server.h>
 #include "esp_wifi.h"
 #include "esp_event.h"
@@ -31,9 +31,29 @@
 #include "esp_vfs_fat.h"
 #include "driver/gpio.h"
 #include "page.h"
+#include "esp_event_loop.h"
 
 #include "esp_timer.h"
 #include "img_converters.h"
+
+#include "esp_http_client.h"
+#include "cJson.h"
+#include "esp_crt_bundle.h"
+#include "esp_tls.h"
+
+#if CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
+#include "esp_crt_bundle.h"
+#endif
+
+
+extern const char howsmyssl_com_root_cert_pem_start[] asm("_binary_howsmyssl_com_root_cert_pem_start");
+extern const char howsmyssl_com_root_cert_pem_end[]   asm("_binary_howsmyssl_com_root_cert_pem_end");
+
+extern const char postman_root_cert_pem_start[] asm("_binary_postman_root_cert_pem_start");
+extern const char postman_root_cert_pem_end[]   asm("_binary_postman_root_cert_pem_end");
+
+#define MAX_HTTP_RECV_BUFFER 512
+#define MAX_HTTP_OUTPUT_BUFFER 2048
 
 #define PART_BOUNDARY "123456789000000000000987654321"
 
@@ -84,7 +104,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
 {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
-    	set_static_ip(arg);
+    	//set_static_ip(arg);
         esp_wifi_connect();
     }
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
@@ -108,6 +128,90 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
+}
+
+esp_err_t _http_event_handler(esp_http_client_event_t *evt)
+{
+    static char *output_buffer;  // Buffer to store response of http request from event handler
+    static int output_len;       // Stores number of bytes read
+    switch(evt->event_id) {
+        case HTTP_EVENT_ERROR:
+            ESP_LOGD(TAG, "HTTP_EVENT_ERROR");
+            break;
+        case HTTP_EVENT_ON_CONNECTED:
+            ESP_LOGD(TAG, "HTTP_EVENT_ON_CONNECTED");
+            break;
+        case HTTP_EVENT_HEADER_SENT:
+            ESP_LOGD(TAG, "HTTP_EVENT_HEADER_SENT");
+            break;
+        case HTTP_EVENT_ON_HEADER:
+            ESP_LOGD(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
+            break;
+        case HTTP_EVENT_ON_DATA:
+            ESP_LOGD(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
+            /*
+             *  Check for chunked encoding is added as the URL for chunked encoding used in this example returns binary data.
+             *  However, event handler can also be used in case chunked encoding is used.
+             */
+            if (!esp_http_client_is_chunked_response(evt->client)) {
+                // If user_data buffer is configured, copy the response into the buffer
+                int copy_len = 0;
+                if (evt->user_data) {
+                    copy_len = MIN(evt->data_len, (MAX_HTTP_OUTPUT_BUFFER - output_len));
+                    if (copy_len) {
+                        memcpy(evt->user_data + output_len, evt->data, copy_len);
+                    }
+                } else {
+                    const int buffer_len = esp_http_client_get_content_length(evt->client);
+                    if (output_buffer == NULL) {
+                        output_buffer = (char *) malloc(buffer_len);
+                        output_len = 0;
+                        if (output_buffer == NULL) {
+                            ESP_LOGE(TAG, "Failed to allocate memory for output buffer");
+                            return ESP_FAIL;
+                        }
+                    }
+                    copy_len = MIN(evt->data_len, (buffer_len - output_len));
+                    if (copy_len) {
+                        memcpy(output_buffer + output_len, evt->data, copy_len);
+                    }
+                }
+                output_len += copy_len;
+            }
+
+            break;
+        case HTTP_EVENT_ON_FINISH:
+            ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
+            if (output_buffer != NULL) {
+                // Response is accumulated in output_buffer. Uncomment the below line to print the accumulated response
+                // ESP_LOG_BUFFER_HEX(TAG, output_buffer, output_len);
+                free(output_buffer);
+                output_buffer = NULL;
+            }
+            output_len = 0;
+            break;
+        case HTTP_EVENT_DISCONNECTED:
+            ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
+            int mbedtls_err = 0;
+            esp_err_t err = esp_tls_get_and_clear_last_error((esp_tls_error_handle_t)evt->data, &mbedtls_err, NULL);
+            if (err != 0) {
+                ESP_LOGI(TAG, "Last esp error code: 0x%x", err);
+                ESP_LOGI(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
+            }
+            if (output_buffer != NULL) {
+                free(output_buffer);
+                output_buffer = NULL;
+            }
+            output_len = 0;
+            break;
+        case HTTP_EVENT_REDIRECT:
+            ESP_LOGD(TAG, "HTTP_EVENT_REDIRECT");
+            esp_http_client_set_header(evt->client, "From", "user@example.com");
+            esp_http_client_set_header(evt->client, "Accept", "text/html");
+            esp_http_client_set_redirection(evt->client);
+            break;
+    }
+    return ESP_OK;
 }
 
 void connect_wifi(void)
@@ -143,7 +247,10 @@ void connect_wifi(void)
             /* Setting a password implies station will connect to all security modes including WEP/WPA.
              * However these modes are deprecated and not advisable to be used. Incase your Access point
              * doesn't support WPA2, these mode can be enabled by commenting below line */
-            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
+			  .scan_method = WIFI_FAST_SCAN,
+			  .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
+			  .threshold.rssi = -127,
+			  .threshold.authmode = WIFI_AUTH_OPEN
         },
     };
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
@@ -300,6 +407,94 @@ static esp_err_t page_handler(httpd_req_t *req) {
 	httpd_resp_set_type(req, "text/html");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     return httpd_resp_send(req, page, sizeof(page));
+}
+
+static esp_err_t http_post_request()
+{
+	char *token = "key=AAAAVclZv2E:APA91bHtv5D6GnQtQofDniqrIzfGxlqNGZToedPo1ixYaXPrDzyCgXqqDzjWqdoZ9V3EMglMBR2Z2Uro0z8nkf7m04SFPtyZstQu8aWdD9yWtZBSSnhZZuB3cu0bEYiVWQKJ2qLYb7HC";
+	char *fcm = "dBGIcwIoQbOQdqIqtmXC47:APA91bF66Ao8saiu9U_A21tAasFKLszbYDVzD5wJEehWuz7v3PhiZXm1TRQ6NbsXDJO75xvMXjOyIzU1s5hqm34R3Xi-evRqT65Xj2lFDKx1Z4-p-YukaKugOvjXLXjrVTnRaVbYENFn";
+	char *url = "fcm.googleapis.com";
+
+	esp_http_client_config_t config = {
+	        .host = "httpbin.org",
+	        .path = "/get",
+	        .transport_type = HTTP_TRANSPORT_OVER_TCP,
+	        .event_handler = _http_event_handler,
+			.port = 443,
+		};
+	esp_http_client_handle_t client = esp_http_client_init(&config);
+	esp_err_t err;
+
+	esp_http_client_set_header(client, "Content-Type", "application/json");
+	esp_http_client_set_header(client, "User-Agent", "ESP32HTTPClient");
+	esp_http_client_set_header(client, "HTTP-Version", "HTTP/1.0");
+	esp_http_client_set_header(client, "Authorization", token);
+
+	// Cria um objeto JSON com os dados a serem enviados
+	cJSON *root = cJSON_CreateObject();
+	cJSON *root2 = cJSON_CreateObject();
+
+	cJSON_AddStringToObject(root, "to", fcm);
+	cJSON_AddStringToObject(root2, "body", "teste body");
+	cJSON_AddStringToObject(root2, "title", "titulo");
+	cJSON_AddStringToObject(root, "notification", root2);
+	// Serializa o objeto JSON em uma string
+	char *json = cJSON_Print(root);
+
+	// Define o tipo de conteúdo para JSON
+	esp_http_client_set_header(client, "Content-Type", "application/json");
+
+	// Envia a mensagem POST com o JSON no corpo da mensagem
+	err = esp_http_client_set_post_field(client, json, strlen(json));
+
+	err = esp_http_client_perform(client);
+		if (err == ESP_OK) {
+			ESP_LOGI(TAG, "HTTP POST Status = %d, content_length = %"PRIu64,
+					esp_http_client_get_status_code(client),
+					esp_http_client_get_content_length(client));
+		}
+
+		else {
+			ESP_LOGE(TAG, "HTTP POST request failed: %s", esp_err_to_name(err));
+		}
+
+		return err;
+
+		esp_http_client_cleanup(client);
+}
+
+static void http_rest_with_hostname_path(void)
+{
+    esp_http_client_config_t config = {
+        .host = "httpbin.org",
+        .path = "/get",
+        .transport_type = HTTP_TRANSPORT_OVER_TCP,
+        .event_handler = _http_event_handler,
+    };
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+
+    esp_err_t err;
+
+    //  POST PUSH NOTIFICATION
+    ESP_LOGI(TAG, " ======================= push notification");
+	char *token = "key=AAAAVclZv2E:APA91bHtv5D6GnQtQofDniqrIzfGxlqNGZToedPo1ixYaXPrDzyCgXqqDzjWqdoZ9V3EMglMBR2Z2Uro0z8nkf7m04SFPtyZstQu8aWdD9yWtZBSSnhZZuB3cu0bEYiVWQKJ2qLYb7HC";
+
+    const char *post_data2 = "{\"to\":\"dBGIcwIoQbOQdqIqtmXC47:APA91bF66Ao8saiu9U_A21tAasFKLszbYDVzD5wJEehWuz7v3PhiZXm1TRQ6NbsXDJO75xvMXjOyIzU1s5hqm34R3Xi-evRqT65Xj2lFDKx1Z4-p-YukaKugOvjXLXjrVTnRaVbYENFn\",\"notification\":{\"body\":\"Corpo da notificacao\",\"title\":\"Titulo da notificacao\"}}";
+    esp_http_client_set_url(client, "https://fcm.googleapis.com/fcm/send");
+    esp_http_client_set_method(client, HTTP_METHOD_POST);
+    esp_http_client_set_header(client, "Content-Type", "application/json");
+    esp_http_client_set_header(client, "Authorization", token);
+    esp_http_client_set_post_field(client, post_data2, strlen(post_data2));
+    err = esp_http_client_perform(client);
+    if (err == ESP_OK) {
+	   ESP_LOGI(TAG, "HTTP POST Status = %d, content_length = %lld",
+			   esp_http_client_get_status_code(client),
+			   esp_http_client_get_content_length(client));
+    } else {
+	   ESP_LOGE(TAG, "HTTP POST request failed: %s", esp_err_to_name(err));
+    }
+
+    esp_http_client_cleanup(client);
 }
 
 httpd_uri_t page_uri = {
@@ -529,6 +724,11 @@ static esp_err_t init_camera()
     return ESP_OK;
 }
 
+static void http_test_task(void *pvParameters)
+{
+	http_rest_with_hostname_path();
+}
+
 void app_main()
 {
     // Initialize NVS
@@ -541,7 +741,9 @@ void app_main()
     ESP_ERROR_CHECK(ret);
 
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
+    //ESP_ERROR_CHECK(connect_wifi);
     connect_wifi();
+    http_rest_with_hostname_path();
 
 	// Initialize camera
     init_camera();
@@ -561,6 +763,11 @@ void app_main()
 
     // Initialize server
     setup_server();
+
+    //xTaskCreate(&http_test_task, "http_test_task", 8192, NULL, 5, NULL);
+    //http_rest_with_hostname_path();
+
+    //http_post_request();
 
     //Capture photo
     //while(1) {
