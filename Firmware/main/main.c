@@ -401,12 +401,17 @@ static void http_rest_with_hostname_path(void)
 
     //  POST PUSH NOTIFICATION
 	char *token = "key=AAAAVclZv2E:APA91bHtv5D6GnQtQofDniqrIzfGxlqNGZToedPo1ixYaXPrDzyCgXqqDzjWqdoZ9V3EMglMBR2Z2Uro0z8nkf7m04SFPtyZstQu8aWdD9yWtZBSSnhZZuB3cu0bEYiVWQKJ2qLYb7HC";
-    const char *post_data2 = "{\"to\":\"dBGIcwIoQbOQdqIqtmXC47:APA91bF66Ao8saiu9U_A21tAasFKLszbYDVzD5wJEehWuz7v3PhiZXm1TRQ6NbsXDJO75xvMXjOyIzU1s5hqm34R3Xi-evRqT65Xj2lFDKx1Z4-p-YukaKugOvjXLXjrVTnRaVbYENFn\",\"notification\":{\"body\":\"Corpo da notificacao\",\"title\":\"Titulo da notificacao\"}}";
+    const char *post_data =
+    		"{\"to\":"
+    			"\"dBGIcwIoQbOQdqIqtmXC47:APA91bF66Ao8saiu9U_A21tAasFKLszbYDVzD5wJEehWuz7v3PhiZXm1TRQ6NbsXDJO75xvMXjOyIzU1s5hqm34R3Xi-evRqT65Xj2lFDKx1Z4-p-YukaKugOvjXLXjrVTnRaVbYENFn\","
+    		"\"notification\":"
+    			"{\"body\":\"Corpo da notificacao\","
+    			"\"title\":\"Titulo da notificacao\"}}";
     esp_http_client_set_url(client, "https://fcm.googleapis.com/fcm/send");
     esp_http_client_set_method(client, HTTP_METHOD_POST);
     esp_http_client_set_header(client, "Content-Type", "application/json");
     esp_http_client_set_header(client, "Authorization", token);
-    esp_http_client_set_post_field(client, post_data2, strlen(post_data2));
+    esp_http_client_set_post_field(client, post_data, strlen(post_data));
     err = esp_http_client_perform(client);
     if (err == ESP_OK) {
 	   ESP_LOGI(TAG, "HTTP POST Status = %d, content_length = %lld",
@@ -665,6 +670,8 @@ void app_main()
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
     //ESP_ERROR_CHECK(connect_wifi);
     connect_wifi();
+
+    //xTaskCreate(&http_test_task, "http_test_task", 8192, NULL, 5, NULL);
     http_rest_with_hostname_path();
 
 	// Initialize camera
@@ -686,14 +693,9 @@ void app_main()
     // Initialize server
     setup_server();
 
-    //xTaskCreate(&http_test_task, "http_test_task", 8192, NULL, 5, NULL);
-    //http_rest_with_hostname_path();
-
-    //http_post_request();
-
     //Capture photo
     //while(1) {
-   //     capturePhotoSaveSpiffs();
-    //    vTaskDelay(1500);
-    //}
+         capturePhotoSaveSpiffs();
+   //      vTaskDelay(1500);
+   // }
 }
