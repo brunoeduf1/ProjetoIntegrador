@@ -45,12 +45,8 @@
 #include "esp_crt_bundle.h"
 #endif
 
-
 extern const char howsmyssl_com_root_cert_pem_start[] asm("_binary_howsmyssl_com_root_cert_pem_start");
 extern const char howsmyssl_com_root_cert_pem_end[]   asm("_binary_howsmyssl_com_root_cert_pem_end");
-
-extern const char postman_root_cert_pem_start[] asm("_binary_postman_root_cert_pem_start");
-extern const char postman_root_cert_pem_end[]   asm("_binary_postman_root_cert_pem_end");
 
 #define MAX_HTTP_RECV_BUFFER 512
 #define MAX_HTTP_OUTPUT_BUFFER 2048
@@ -60,8 +56,6 @@ extern const char postman_root_cert_pem_end[]   asm("_binary_postman_root_cert_p
 static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
 static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
-
-#define LED_PIN 4
 
 static const char *TAG = "espressif"; // TAG for debug
 int led_state = 0;
@@ -81,23 +75,6 @@ static EventGroupHandle_t s_wifi_event_group;
 
 static int s_retry_num = 0;
 
-static void set_static_ip(esp_netif_t *netif)
-{
-    if (esp_netif_dhcpc_stop(netif) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to stop dhcp client");
-        return;
-    }
-    esp_netif_ip_info_t ip;
-    memset(&ip, 0 , sizeof(esp_netif_ip_info_t));
-    ip.ip.addr = ipaddr_addr("192.168.25.42");
-    ip.netmask.addr = ipaddr_addr("255.255.255.0");
-    ip.gw.addr = ipaddr_addr("192.168.25.1");
-    if (esp_netif_set_ip_info(netif, &ip) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to set ip info");
-        return;
-    }
-    ESP_LOGI(TAG, "Success to set static ip: %s", "192.168.25.42");
-}
 
 static void event_handler(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data)
@@ -409,76 +386,21 @@ static esp_err_t page_handler(httpd_req_t *req) {
     return httpd_resp_send(req, page, sizeof(page));
 }
 
-static esp_err_t http_post_request()
-{
-	char *token = "key=AAAAVclZv2E:APA91bHtv5D6GnQtQofDniqrIzfGxlqNGZToedPo1ixYaXPrDzyCgXqqDzjWqdoZ9V3EMglMBR2Z2Uro0z8nkf7m04SFPtyZstQu8aWdD9yWtZBSSnhZZuB3cu0bEYiVWQKJ2qLYb7HC";
-	char *fcm = "dBGIcwIoQbOQdqIqtmXC47:APA91bF66Ao8saiu9U_A21tAasFKLszbYDVzD5wJEehWuz7v3PhiZXm1TRQ6NbsXDJO75xvMXjOyIzU1s5hqm34R3Xi-evRqT65Xj2lFDKx1Z4-p-YukaKugOvjXLXjrVTnRaVbYENFn";
-	char *url = "fcm.googleapis.com";
-
-	esp_http_client_config_t config = {
-	        .host = "httpbin.org",
-	        .path = "/get",
-	        .transport_type = HTTP_TRANSPORT_OVER_TCP,
-	        .event_handler = _http_event_handler,
-			.port = 443,
-		};
-	esp_http_client_handle_t client = esp_http_client_init(&config);
-	esp_err_t err;
-
-	esp_http_client_set_header(client, "Content-Type", "application/json");
-	esp_http_client_set_header(client, "User-Agent", "ESP32HTTPClient");
-	esp_http_client_set_header(client, "HTTP-Version", "HTTP/1.0");
-	esp_http_client_set_header(client, "Authorization", token);
-
-	// Cria um objeto JSON com os dados a serem enviados
-	cJSON *root = cJSON_CreateObject();
-	cJSON *root2 = cJSON_CreateObject();
-
-	cJSON_AddStringToObject(root, "to", fcm);
-	cJSON_AddStringToObject(root2, "body", "teste body");
-	cJSON_AddStringToObject(root2, "title", "titulo");
-	cJSON_AddStringToObject(root, "notification", root2);
-	// Serializa o objeto JSON em uma string
-	char *json = cJSON_Print(root);
-
-	// Define o tipo de conteúdo para JSON
-	esp_http_client_set_header(client, "Content-Type", "application/json");
-
-	// Envia a mensagem POST com o JSON no corpo da mensagem
-	err = esp_http_client_set_post_field(client, json, strlen(json));
-
-	err = esp_http_client_perform(client);
-		if (err == ESP_OK) {
-			ESP_LOGI(TAG, "HTTP POST Status = %d, content_length = %"PRIu64,
-					esp_http_client_get_status_code(client),
-					esp_http_client_get_content_length(client));
-		}
-
-		else {
-			ESP_LOGE(TAG, "HTTP POST request failed: %s", esp_err_to_name(err));
-		}
-
-		return err;
-
-		esp_http_client_cleanup(client);
-}
-
 static void http_rest_with_hostname_path(void)
 {
     esp_http_client_config_t config = {
         .host = "httpbin.org",
         .path = "/get",
-        .transport_type = HTTP_TRANSPORT_OVER_TCP,
+        .transport_type = HTTP_TRANSPORT_OVER_SSL,
         .event_handler = _http_event_handler,
+		.crt_bundle_attach = esp_crt_bundle_attach,
+		.cert_pem = howsmyssl_com_root_cert_pem_start,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
-
     esp_err_t err;
 
     //  POST PUSH NOTIFICATION
-    ESP_LOGI(TAG, " ======================= push notification");
 	char *token = "key=AAAAVclZv2E:APA91bHtv5D6GnQtQofDniqrIzfGxlqNGZToedPo1ixYaXPrDzyCgXqqDzjWqdoZ9V3EMglMBR2Z2Uro0z8nkf7m04SFPtyZstQu8aWdD9yWtZBSSnhZZuB3cu0bEYiVWQKJ2qLYb7HC";
-
     const char *post_data2 = "{\"to\":\"dBGIcwIoQbOQdqIqtmXC47:APA91bF66Ao8saiu9U_A21tAasFKLszbYDVzD5wJEehWuz7v3PhiZXm1TRQ6NbsXDJO75xvMXjOyIzU1s5hqm34R3Xi-evRqT65Xj2lFDKx1Z4-p-YukaKugOvjXLXjrVTnRaVbYENFn\",\"notification\":{\"body\":\"Corpo da notificacao\",\"title\":\"Titulo da notificacao\"}}";
     esp_http_client_set_url(client, "https://fcm.googleapis.com/fcm/send");
     esp_http_client_set_method(client, HTTP_METHOD_POST);
