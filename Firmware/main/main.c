@@ -76,13 +76,44 @@ static EventGroupHandle_t s_wifi_event_group;
 static int s_retry_num = 0;
 
 
+static esp_err_t example_set_dns_server(esp_netif_t *netif, uint32_t addr, esp_netif_dns_type_t type)
+{
+    if (addr && (addr != IPADDR_NONE)) {
+        esp_netif_dns_info_t dns;
+        dns.ip.u_addr.ip4.addr = addr;
+        dns.ip.type = IPADDR_TYPE_V4;
+        ESP_ERROR_CHECK(esp_netif_set_dns_info(netif, type, &dns));
+    }
+    return ESP_OK;
+}
+
+static void set_static_ip(esp_netif_t *netif)
+{
+    if (esp_netif_dhcpc_stop(netif) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to stop dhcp client");
+        return;
+    }
+    esp_netif_ip_info_t ip;
+    memset(&ip, 0 , sizeof(esp_netif_ip_info_t));
+    ip.ip.addr = ipaddr_addr("192.168.1.105");
+    ip.netmask.addr = ipaddr_addr("255.255.255.0");
+    ip.gw.addr = ipaddr_addr("192.168.25.1");
+    if (esp_netif_set_ip_info(netif, &ip) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set ip info");
+        return;
+    }
+    //ESP_LOGD(TAG, "Success to set static ip: %s, netmask: %s, gw: %s", EXAMPLE_STATIC_IP_ADDR, EXAMPLE_STATIC_NETMASK_ADDR, EXAMPLE_STATIC_GW_ADDR);
+    ESP_ERROR_CHECK(example_set_dns_server(netif, ipaddr_addr("0.0.0.0"), ESP_NETIF_DNS_MAIN));
+    ESP_ERROR_CHECK(example_set_dns_server(netif, ipaddr_addr("0.0.0.0"), ESP_NETIF_DNS_BACKUP));
+}
+
 static void event_handler(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data)
 {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
     	//set_static_ip(arg);
-        esp_wifi_connect();
+    	esp_wifi_connect();
     }
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
@@ -200,6 +231,7 @@ void connect_wifi(void)
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
     assert(sta_netif);
+    esp_netif_set_hostname(sta_netif, "ESP32_Tutorials");
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -427,15 +459,9 @@ static void http_rest_with_hostname_path(void)
 httpd_uri_t page_uri = {
     .uri       = "/ts",
     .method    = HTTP_GET,
-    .handler   = page_handler,
+    .handler   = stream_handler,
     .user_ctx  = NULL
 };
-
-httpd_uri_t uri_get = {
-    .uri = "/",
-    .method = HTTP_GET,
-    .handler = stream_handler,
-    .user_ctx = NULL};
 
 httpd_uri_t uri_photo = {
     .uri = "/photo",
@@ -458,17 +484,9 @@ httpd_handle_t setup_server(void)
 
     if (httpd_start(&server, &config) == ESP_OK)
     {
-    	//httpd_register_uri_handler(server, &uri_get);
     	httpd_register_uri_handler(server, &capture_uri);
         httpd_register_uri_handler(server, &uri_photo);
         httpd_register_uri_handler(server, &page_uri);
-    }
-
-    config.server_port += 1;
-    config.ctrl_port += 1;
-    ESP_LOGI(TAG, "Starting stream server on port: '%d'\n", config.server_port);
-    if (httpd_start(&stream_httpd, &config) == ESP_OK) {
-        httpd_register_uri_handler(stream_httpd, &uri_get);
     }
 
     return server;
@@ -649,11 +667,6 @@ static esp_err_t init_camera()
     }
 
     return ESP_OK;
-}
-
-static void http_test_task(void *pvParameters)
-{
-	http_rest_with_hostname_path();
 }
 
 void app_main()
