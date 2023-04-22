@@ -95,9 +95,9 @@ static void set_static_ip(esp_netif_t *netif)
     }
     esp_netif_ip_info_t ip;
     memset(&ip, 0 , sizeof(esp_netif_ip_info_t));
-    ip.ip.addr = ipaddr_addr("192.168.1.105");
+    ip.ip.addr = ipaddr_addr("192.168.25.42");
     ip.netmask.addr = ipaddr_addr("255.255.255.0");
-    ip.gw.addr = ipaddr_addr("192.168.25.1");
+    ip.gw.addr = ipaddr_addr("192.168.1.1");
     if (esp_netif_set_ip_info(netif, &ip) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set ip info");
         return;
@@ -438,6 +438,7 @@ static void http_rest_with_hostname_path(void)
     			"\"dBGIcwIoQbOQdqIqtmXC47:APA91bF66Ao8saiu9U_A21tAasFKLszbYDVzD5wJEehWuz7v3PhiZXm1TRQ6NbsXDJO75xvMXjOyIzU1s5hqm34R3Xi-evRqT65Xj2lFDKx1Z4-p-YukaKugOvjXLXjrVTnRaVbYENFn\","
     		"\"notification\":"
     			"{\"body\":\"Corpo da notificacao\","
+    			"{\image\":\"http://192.168.1.108/photo\","
     			"\"title\":\"Titulo da notificacao\"}}";
     esp_http_client_set_url(client, "https://fcm.googleapis.com/fcm/send");
     esp_http_client_set_method(client, HTTP_METHOD_POST);
