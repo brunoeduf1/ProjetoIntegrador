@@ -76,43 +76,11 @@ static EventGroupHandle_t s_wifi_event_group;
 static int s_retry_num = 0;
 
 
-static esp_err_t example_set_dns_server(esp_netif_t *netif, uint32_t addr, esp_netif_dns_type_t type)
-{
-    if (addr && (addr != IPADDR_NONE)) {
-        esp_netif_dns_info_t dns;
-        dns.ip.u_addr.ip4.addr = addr;
-        dns.ip.type = IPADDR_TYPE_V4;
-        ESP_ERROR_CHECK(esp_netif_set_dns_info(netif, type, &dns));
-    }
-    return ESP_OK;
-}
-
-static void set_static_ip(esp_netif_t *netif)
-{
-    if (esp_netif_dhcpc_stop(netif) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to stop dhcp client");
-        return;
-    }
-    esp_netif_ip_info_t ip;
-    memset(&ip, 0 , sizeof(esp_netif_ip_info_t));
-    ip.ip.addr = ipaddr_addr("192.168.25.42");
-    ip.netmask.addr = ipaddr_addr("255.255.255.0");
-    ip.gw.addr = ipaddr_addr("192.168.1.1");
-    if (esp_netif_set_ip_info(netif, &ip) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to set ip info");
-        return;
-    }
-    //ESP_LOGD(TAG, "Success to set static ip: %s, netmask: %s, gw: %s", EXAMPLE_STATIC_IP_ADDR, EXAMPLE_STATIC_NETMASK_ADDR, EXAMPLE_STATIC_GW_ADDR);
-    ESP_ERROR_CHECK(example_set_dns_server(netif, ipaddr_addr("0.0.0.0"), ESP_NETIF_DNS_MAIN));
-    ESP_ERROR_CHECK(example_set_dns_server(netif, ipaddr_addr("0.0.0.0"), ESP_NETIF_DNS_BACKUP));
-}
-
 static void event_handler(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data)
 {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
-    	//set_static_ip(arg);
     	esp_wifi_connect();
     }
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
@@ -412,10 +380,11 @@ esp_err_t photo_handler(httpd_req_t *req)
     return send_web_page(req);
 }
 
-static esp_err_t page_handler(httpd_req_t *req) {
-	httpd_resp_set_type(req, "text/html");
-    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
-    return httpd_resp_send(req, page, sizeof(page));
+esp_err_t control_handler(httpd_req_t *req)
+{
+    const char* remote_control = "Send";
+    ESP_LOGI(TAG, "Signal received OK");
+	return httpd_resp_send(req, remote_control, sizeof(remote_control));
 }
 
 static void http_rest_with_hostname_path(void)
@@ -438,7 +407,6 @@ static void http_rest_with_hostname_path(void)
     			"\"dBGIcwIoQbOQdqIqtmXC47:APA91bF66Ao8saiu9U_A21tAasFKLszbYDVzD5wJEehWuz7v3PhiZXm1TRQ6NbsXDJO75xvMXjOyIzU1s5hqm34R3Xi-evRqT65Xj2lFDKx1Z4-p-YukaKugOvjXLXjrVTnRaVbYENFn\","
     		"\"notification\":"
     			"{\"body\":\"Corpo da notificacao\","
-    			"{\image\":\"http://192.168.1.108/photo\","
     			"\"title\":\"Titulo da notificacao\"}}";
     esp_http_client_set_url(client, "https://fcm.googleapis.com/fcm/send");
     esp_http_client_set_method(client, HTTP_METHOD_POST);
@@ -477,24 +445,30 @@ httpd_uri_t capture_uri = {
     .user_ctx  = NULL
 };
 
+httpd_uri_t control_uri = {
+    .uri       = "/control",
+    .method    = HTTP_GET,
+    .handler   = control_handler,
+    .user_ctx  = NULL
+};
+
 httpd_handle_t setup_server(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     httpd_handle_t server = NULL;
-    httpd_handle_t stream_httpd = NULL;
 
     if (httpd_start(&server, &config) == ESP_OK)
     {
     	httpd_register_uri_handler(server, &capture_uri);
         httpd_register_uri_handler(server, &uri_photo);
         httpd_register_uri_handler(server, &page_uri);
+        httpd_register_uri_handler(server, &control_uri);
     }
 
     return server;
 }
 
 //SPIFFS
-// juntando as coisas
 // ledPin refers to ESP32-CAM GPIO 4 (flashlight)
 #define FLASH_GPIO_NUM 4
 

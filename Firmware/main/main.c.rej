@@ -1,0 +1,23 @@
+diff a/Firmware/main/main.c b/Firmware/main/main.c	(rejected hunks)
+@@ -375,15 +375,15 @@
+     return send_web_page(req);
+ }
+ 
+-esp_err_t photo_handler(httpd_req_t *req)
++esp_err_t control_handler(httpd_req_t *req)
+ {
+-    return send_web_page(req);
++	ESP_LOGI(TAG, "Recebido pedido de abrir/fechar port�o");
++	return send_web_page(req);
+ }
+ 
+-static esp_err_t page_handler(httpd_req_t *req) {
+-	httpd_resp_set_type(req, "text/html");
+-    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+-    return httpd_resp_send(req, page, sizeof(page));
++esp_err_t photo_handler(httpd_req_t *req)
++{
++    return send_web_page(req);
+ }
+ 
+ static void http_rest_with_hostname_path(void)

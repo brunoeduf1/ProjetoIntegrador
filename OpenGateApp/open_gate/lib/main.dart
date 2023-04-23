@@ -90,13 +90,12 @@ class MyApp extends StatelessWidget {
             },
           ),
         ),
-        floatingActionButton: const FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
+        floatingActionButton: const FloatingActionButton.extended(
+          onPressed: _incrementCounter,
+          label: Text('Open / Close'),
       ),
       ),
-    );
+      );
   }
 }
 
