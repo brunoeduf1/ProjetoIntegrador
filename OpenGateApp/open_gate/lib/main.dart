@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:webview_flutter/webview_flutter.dart' show JavascriptMode, WebView, WebViewController;
+import 'package:http/http.dart' as http;
 
 Future<void> main() async {
 
@@ -83,7 +84,7 @@ class MyApp extends StatelessWidget {
         ),
         body: Center(
           child: WebView(
-            initialUrl: 'http://192.168.25.42/ts',
+            initialUrl: 'http://192.168.25.42/capture',
             javascriptMode: JavascriptMode.unrestricted,
             onWebViewCreated: (WebViewController webViewController) {
               _controller = webViewController;
@@ -91,7 +92,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
         floatingActionButton: const FloatingActionButton.extended(
-          onPressed: _incrementCounter,
+          onPressed: closeGate,
           label: Text('Open / Close'),
       ),
       ),
@@ -99,8 +100,16 @@ class MyApp extends StatelessWidget {
   }
 }
 
-  void _incrementCounter() {
-
-    int _counter = 0;
-      _counter++;
+void closeGate() async {
+  var client = http.Client();
+  try
+  {
+    var response = await client.get(Uri.http("192.168.25.42", "/control"));
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
   }
+  finally
+  {
+    client.close();
+  }
+}

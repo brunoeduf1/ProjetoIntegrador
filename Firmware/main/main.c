@@ -452,6 +452,13 @@ httpd_uri_t control_uri = {
     .user_ctx  = NULL
 };
 
+httpd_uri_t get_uri = {
+    .uri       = "/",
+    .method    = HTTP_GET,
+    .handler   = control_handler,
+    .user_ctx  = NULL
+};
+
 httpd_handle_t setup_server(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -463,6 +470,7 @@ httpd_handle_t setup_server(void)
         httpd_register_uri_handler(server, &uri_photo);
         httpd_register_uri_handler(server, &page_uri);
         httpd_register_uri_handler(server, &control_uri);
+        httpd_register_uri_handler(server, &get_uri);
     }
 
     return server;
