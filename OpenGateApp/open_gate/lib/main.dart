@@ -4,6 +4,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:webview_flutter/webview_flutter.dart' show JavascriptMode, WebView, WebViewController;
 import 'package:http/http.dart' as http;
+import 'package:flutter_isolate/flutter_isolate.dart';
+
+late WebViewController controller;
 
 Future<void> main() async {
 
@@ -68,8 +71,7 @@ class _Application extends State<Application> {
 
 class MyApp extends StatelessWidget {
   MyApp({super.key});
-  late WebViewController _controller;
-
+  
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
@@ -87,7 +89,7 @@ class MyApp extends StatelessWidget {
             initialUrl: 'http://192.168.25.42/capture',
             javascriptMode: JavascriptMode.unrestricted,
             onWebViewCreated: (WebViewController webViewController) {
-              _controller = webViewController;
+              controller = webViewController;
             },
           ),
         ),
