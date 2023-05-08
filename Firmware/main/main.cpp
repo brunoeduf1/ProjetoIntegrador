@@ -1,5 +1,6 @@
+
 extern "C"{
-	#include "main2.h"
+	#include "settings.h"
 }
 #include <esp_log.h>
 #include <stdio.h>
@@ -12,11 +13,12 @@ using namespace cv;
 static const char *TAG = "espressif";
 
 extern "C" void app_main() {
-	func();
+	main_func();
 
 	ESP_LOGI(TAG, "***** Working ******");
 	Mat img;
 	Mat imgCopy;
+
 }
 
 

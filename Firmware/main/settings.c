@@ -1,3 +1,5 @@
+#include "settings.h"
+//Wifi
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> //Requires by memset
@@ -7,7 +9,6 @@
 #include "spi_flash_mmap.h"
 #include <esp_http_server.h>
 #include "esp_wifi.h"
-#include "esp_event.h"
 #include "freertos/event_groups.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
@@ -17,7 +18,7 @@
 #include <lwip/sys.h>
 #include <lwip/api.h>
 #include <lwip/netdb.h>
-//SPIFFS
+//Spiffs
 #include <sys/unistd.h>
 #include <sys/stat.h>
 #include "esp_err.h"
@@ -30,18 +31,12 @@
 #include "sdmmc_cmd.h"
 #include "esp_vfs_fat.h"
 #include "driver/gpio.h"
-#include "page.h"
-#include "esp_event_loop.h"
-
+#include "esp_event.h"
 #include "esp_timer.h"
 #include "img_converters.h"
-
 #include "esp_http_client.h"
-#include "cJson.h"
 #include "esp_crt_bundle.h"
 #include "esp_tls.h"
-
-#include "main2.h"
 
 #if CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
 #include "esp_crt_bundle.h"
@@ -60,7 +55,6 @@ static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
 static const char *TAG = "espressif"; // TAG for debug
-int led_state = 0;
 
 #define EXAMPLE_ESP_WIFI_SSID "IMMF"
 #define EXAMPLE_ESP_WIFI_PASS "Marcelle2017"
@@ -76,7 +70,6 @@ static EventGroupHandle_t s_wifi_event_group;
 #define WIFI_FAIL_BIT BIT1
 
 static int s_retry_num = 0;
-
 
 static void event_handler(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data)
@@ -297,12 +290,12 @@ esp_err_t send_web_page(httpd_req_t *req)
 }
 
 static esp_err_t capture_handler(httpd_req_t *req){
-    //Serial.println("Capture image");
+	ESP_LOGI(TAG,"Capture image");
     camera_fb_t * fb = NULL;
     esp_err_t res = ESP_OK;
     fb = esp_camera_fb_get();
     if (!fb) {
-        //Serial.println("Camera capture failed");
+    	ESP_LOGI(TAG,"Camera capture failed");
         httpd_resp_send_500(req);
         return ESP_FAIL;
     }
@@ -330,7 +323,7 @@ static esp_err_t stream_handler(httpd_req_t *req){
     while(true){
         fb = esp_camera_fb_get();
         if (!fb) {
-            //Serial.println("Camera capture failed");
+        	ESP_LOGI(TAG,"Camera capture failed");
             res = ESP_FAIL;
         } else {
 
@@ -339,7 +332,7 @@ static esp_err_t stream_handler(httpd_req_t *req){
                     esp_camera_fb_return(fb);
                     fb = NULL;
                     if(!jpeg_converted){
-                        //Serial.println("JPEG compression failed");
+                    	ESP_LOGI(TAG,"JPEG compression failed");
                         res = ESP_FAIL;
                     }
                 } else {
@@ -389,7 +382,7 @@ esp_err_t control_handler(httpd_req_t *req)
 	return httpd_resp_send(req, remote_control, sizeof(remote_control));
 }
 
-static void http_rest_with_hostname_path(void)
+static void http_rest_with_hostname_path(void *pvParameters)
 {
     esp_http_client_config_t config = {
         .host = "httpbin.org",
@@ -425,6 +418,8 @@ static void http_rest_with_hostname_path(void)
     }
 
     esp_http_client_cleanup(client);
+
+    vTaskDelete(NULL);
 }
 
 httpd_uri_t page_uri = {
@@ -477,10 +472,6 @@ httpd_handle_t setup_server(void)
 
     return server;
 }
-
-//SPIFFS
-// ledPin refers to ESP32-CAM GPIO 4 (flashlight)
-#define FLASH_GPIO_NUM 4
 
 // Photo File Name to save in SPIFFS
 #define FILE_PHOTO "photo.jpg"
@@ -654,7 +645,7 @@ static esp_err_t init_camera()
     return ESP_OK;
 }
 
-void func()
+void main_func()
 {
     // Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -664,17 +655,16 @@ void func()
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
-
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
-    //ESP_ERROR_CHECK(connect_wifi);
+
+    // Initialize wifi
     connect_wifi();
 
-    //xTaskCreate(&http_test_task, "http_test_task", 8192, NULL, 5, NULL);
-    http_rest_with_hostname_path();
+    // Call the Firebase service
+    xTaskCreate(&http_rest_with_hostname_path, "http_rest_with_hostname_path", 8192, NULL, 5, NULL);
 
 	// Initialize camera
     init_camera();
-
     sensor_t * s = esp_camera_sensor_get();
     // initial sensors are flipped vertically and colors are a bit saturated
     if (s->id.PID == OV3660_PID) {
