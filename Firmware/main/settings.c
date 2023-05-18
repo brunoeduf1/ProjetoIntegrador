@@ -49,7 +49,6 @@ extern const char howsmyssl_com_root_cert_pem_end[]   asm("_binary_howsmyssl_com
 #define MAX_HTTP_OUTPUT_BUFFER 2048
 
 #define PART_BOUNDARY "123456789000000000000987654321"
-
 static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
 static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
@@ -70,6 +69,8 @@ static EventGroupHandle_t s_wifi_event_group;
 #define WIFI_FAIL_BIT BIT1
 
 static int s_retry_num = 0;
+static camera_fb_t *get_photo = NULL;
+static camera_fb_t *set_photo = NULL;
 
 static void event_handler(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data)
@@ -260,8 +261,8 @@ void connect_wifi(void)
 
 esp_err_t send_web_page(httpd_req_t *req)
 {
-	char* image_path = "/spiffs/photo.jpg";
-	char* image_type = "image/jpeg";
+	char* image_path = "/spiffs/photo.png";
+	char* image_type = "image/png";
 
 	FILE* fp = fopen(image_path, "r");
 	if(fp == NULL){
@@ -291,7 +292,7 @@ esp_err_t send_web_page(httpd_req_t *req)
 
 static esp_err_t capture_handler(httpd_req_t *req){
 	ESP_LOGI(TAG,"Capture image");
-    camera_fb_t * fb = NULL;
+    camera_fb_t *fb = NULL;
     esp_err_t res = ESP_OK;
     fb = esp_camera_fb_get();
     if (!fb) {
@@ -365,9 +366,36 @@ static esp_err_t stream_handler(httpd_req_t *req){
     return res;
 }
 
+void set_result(camera_fb_t *fb){
+	set_photo = fb;
+}
+
+esp_err_t result(httpd_req_t *req){
+	ESP_LOGI(TAG,"Result image");
+
+    esp_err_t res = ESP_OK;
+    if (!set_photo) {
+    	ESP_LOGI(TAG,"Camera capture failed");
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+    httpd_resp_set_type(req, "image/jpeg");
+    httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+
+    res = httpd_resp_send(req, (const char *)set_photo->buf, set_photo->len);
+    esp_camera_fb_return(set_photo);
+    return res;
+}
+
 esp_err_t get_req_handler(httpd_req_t *req)
 {
     return send_web_page(req);
+}
+
+esp_err_t result_handler(httpd_req_t *req)
+{
+    return result(req);
 }
 
 esp_err_t photo_handler(httpd_req_t *req)
@@ -429,6 +457,12 @@ httpd_uri_t page_uri = {
     .user_ctx  = NULL
 };
 
+httpd_uri_t uri_result = {
+    .uri = "/result",
+    .method = HTTP_GET,
+	.handler = result_handler,
+    .user_ctx = NULL};
+
 httpd_uri_t uri_photo = {
     .uri = "/photo",
     .method = HTTP_GET,
@@ -468,13 +502,14 @@ httpd_handle_t setup_server(void)
         httpd_register_uri_handler(server, &page_uri);
         httpd_register_uri_handler(server, &control_uri);
         httpd_register_uri_handler(server, &get_uri);
+        httpd_register_uri_handler(server, &uri_result);
     }
 
     return server;
 }
 
 // Photo File Name to save in SPIFFS
-#define FILE_PHOTO "photo.jpg"
+#define FILE_PHOTO "photo.png"
 
 bool takeNewPhoto = false;
 bool workInProgress = false;
@@ -543,6 +578,7 @@ void capturePhotoSaveSpiffs()
 	    		ESP_LOGI(TAG, "Taking picture...");
 
 	    		fb = esp_camera_fb_get();
+	    		get_photo = fb;
 			    if (!fb)
 			    {
 				  ESP_LOGI(TAG,"Camera capture failed");
@@ -552,23 +588,22 @@ void capturePhotoSaveSpiffs()
 
 			    ESP_LOGI(TAG,"Camera capture ok");
 			    ESP_LOGI(TAG,"Picture file name: %s\n", FILE_PHOTO);
-			    FILE* file = fopen("/spiffs/photo.jpg", "w");
+			    FILE* file = fopen("/spiffs/photo.png", "w");
 			    if (file == NULL) {
 			        ESP_LOGE(TAG, "Failed to open file in writing mode");
 			        return;
 			    }
-			      else
-			      {
-			    	fwrite(fb->buf, 1, fb->len, file); // payload (image), payload length
-			        ESP_LOGI(TAG,"The picture has been saved in /spiffs");
-			        ESP_LOGI(TAG," - Size: %d" ,fb->len);
-			        ESP_LOGI(TAG," bytes");
+			   else
+			   {
+					fwrite(fb->buf, 1, fb->len, file); // payload (image), payload length
+					ESP_LOGI(TAG,"The picture has been saved in /spiffs");
+					ESP_LOGI(TAG," - Size: %d" ,fb->len);
+					ESP_LOGI(TAG," bytes");
+			   }
 
-			      }
-
-			      fclose(file);
-			      esp_camera_fb_return(fb);
-			      ok = true;
+			  fclose(file);
+			  esp_camera_fb_return(fb);
+			  ok = true;
 
 	    	}while(!ok);
 
@@ -627,7 +662,7 @@ static camera_config_t camera_config = {
 				.grab_mode = CAMERA_GRAB_WHEN_EMPTY,
 		        .pixel_format = PIXFORMAT_JPEG,
 
-		        .frame_size = FRAMESIZE_QVGA,
+		        .frame_size = FRAMESIZE_SVGA,
 		        .jpeg_quality = 10,
 		        .fb_count = 2,
 		        };
@@ -643,6 +678,11 @@ static esp_err_t init_camera()
     }
 
     return ESP_OK;
+}
+
+camera_fb_t* get_picture()
+{
+	return get_photo;
 }
 
 void main_func()
@@ -683,7 +723,7 @@ void main_func()
 
     //Capture photo
     //while(1) {
-         capturePhotoSaveSpiffs();
+    capturePhotoSaveSpiffs();
    //      vTaskDelay(1500);
    // }
 }

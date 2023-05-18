@@ -1,23 +1,32 @@
 
 extern "C"{
 	#include "settings.h"
+	#include <sys/unistd.h>
+	#include <sys/stat.h>
+	#include "esp_err.h"
+	#include "esp_spiffs.h"
 }
+#include "esp_camera.h"
 #include <esp_log.h>
 #include <stdio.h>
-#include "opencv2/core.hpp"
-#include "opencv2/imgproc.hpp"
-#include "opencv2/imgcodecs.hpp"
+//#include "py/dynruntime.h"
 
-using namespace cv;
-
-static const char *TAG = "espressif";
+static const char *TAG = "APP_MAIN";
 
 extern "C" void app_main() {
+
 	main_func();
 
 	ESP_LOGI(TAG, "***** Working ******");
-	Mat img;
-	Mat imgCopy;
+
+	camera_fb_t *fb = get_picture();
+
+	if (!fb){
+	    	ESP_LOGI(TAG,"Camera capture failed");
+	}
+	else{
+		ESP_LOGI(TAG,"Camera capture ok");
+	}
 
 }
 

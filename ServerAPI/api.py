@@ -28,7 +28,7 @@ portao_fechado_hist = cv2.calcHist([area_portao_fechado_gray], [0], None, [256],
 portao_aberto_hist = cv2.calcHist([area_portao_aberto_gray], [0], None, [256], [0, 256])
 nova_imagem_hist = cv2.calcHist([area_nova_imagem_gray], [0], None, [256], [0, 256])
 
-# comparar as imagens usando o método correlation
+# comparar as imagens usando o método correlação
 resultado_fechado = cv2.compareHist(portao_fechado_hist, nova_imagem_hist, cv2.HISTCMP_CORREL)
 resultado_aberto = cv2.compareHist(portao_aberto_hist, nova_imagem_hist, cv2.HISTCMP_CORREL)
 
@@ -49,8 +49,9 @@ print("Aberto: ", resultado_aberto)
 #cv2.rectangle(nova_imagem, (x, y), (x+width, y+height), (0, 0, 255), 2)
 
 # mostrar as imagens com a área de comparação desenhada
-#cv2.imshow("Portão fechado", portao_fechado)
+cv2.imshow("Portão fechado", area_portao_fechado_gray)
 #cv2.imshow("Portão aberto", portao_aberto)
 #cv2.imshow("Nova imagem", nova_imagem)
-#cv2.waitKey(0)
-#cv2.destroyAllWindows()
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
