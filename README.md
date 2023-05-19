@@ -74,6 +74,19 @@ Em relação aos objetivos, a pesquisa será exploratória por tornar o problema
 
 Por ser elaborada com a utilização de material publicado, seja em livros, internet e/ou artigos, esta pesquisa será considerada como bibliográfica.
 
+# 4 DESENVOLVIMENTO
+
+## 4.1 Linguagem e IDE de desenvolvimento
+
+Para realizar o projeto, após pesquisa, resolvi optar por comprar o microcontrolador ESP32-CAM que é um modelo amplamente utilizado no mundo inteiro, que possui uma boa documentação, atende aos requisitos de projeto (criar um webserver, tirar fotos e analisar as imagens).
+Decidi comprar duas placas iguais (para caso uma delas queimasse durante os testes), e uma placa um pouco mais robusta (ESP32-CAM Wrover).
+
+Com as placas em mãos, iniciei com o plano de utilizar o Micropython, segui alguns tutoriais diferentes e em todos eles eu consegui fazer o upload do firmware, mas ao abrir o programa Thonny, sempre me deparava om a mensagem de que a porta COM estava ocupada. Tentei buscar a solução deste problema por aproximadamente três dias, desisti e segui por um outro caminho, programar em C/C++ utilizando o Visual Studio Code.
+
+Com o Visual Studio Code, consegui rodar alguns exemplos, testei o uso da extensão PlataformIO e também da ESP-IDF, porém diversas vezes me deparava com o problema de do Software travar o carregamento e consequentemente me atrasando no desenvolvimento.
+
+Após conversa com um colega de sala, ele sugeriu o uso da IDE ESP-IDF para desenvolver o firmware. Utilizei de alguns exemplos do Github oficial da Espressif como base para o desenvolvimento do projeto, tive aqui também alguns problemas de travamento, porém consegui resolvê-los com maior rapidez.
+
 # REFERÊNCIAS
 
 FATECTQ. A INTERNET DAS COISAS: evolução, impactos e benefícios. 2023. Disponível em: <https://revista.fatectq.edu.br/index.php/interfacetecnologica/article/download/538/363>. Acesso em: 26 fev. 2023.
