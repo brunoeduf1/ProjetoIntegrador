@@ -16,7 +16,9 @@ Eventualmente saímos de casa e nos deparamos com situações de que podemos ter
 
 Desenvolver um sistema de comunicação entre o portão eletrônico e um smartphone, onde uma câmera capta imagens do portão e repassa a um microcontrolador, este por sua vez analisará se o portão não está fechado por completo por um período determinado de tempo, e se comunicará com o smartphone via sinal de wifi onde o usuário irá escolher qual ação deve ser tomada. Este fluxo é ilustrado pelo diagrama de blocos a seguir:
 	
-![image](https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/bf5ebd5d-215c-4fb8-baf3-ad1f694dfba9)
+<p align="center">
+  <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/bf5ebd5d-215c-4fb8-baf3-ad1f694dfba9">
+</p>
 
 Koyanagi (2019), desenvolveu um projeto utilizando ESP32-CAM para reconhecimento facial, mostrando ser possível utilizar as imagens capturadas através da câmera OV2640 / 2 mp para identificar pessoas através de seus rostos, e este mesmo princípio pode ser utilizado para identificar as situações do portão eletrônico.
 
@@ -76,7 +78,9 @@ Por ser elaborada com a utilização de material publicado, seja em livros, inte
 
 # 4 CRONOGRAMA
 
-![image](https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/2bce7f96-51e6-4d30-b9a1-274b8e7e873c)
+<p align="center">
+  <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/2bce7f96-51e6-4d30-b9a1-274b8e7e873c">
+</p>
 
 # 5 DESENVOLVIMENTO
 
@@ -97,23 +101,31 @@ Iniciei o desenvolvimento do firmware configurando o wifi no microcontrolador, d
 
 Utilizei o Visual Studio Code para desenvolver o aplicativo com o framework Flutter, que utiliza a linguagem DART. Escolhi o Flutter pois me permite desenvolver um único códicgo para ser utilizado nas plataformas Android e IOS. Criei o aplicativo com apenas um botão e que exibe em sua tela uma webview com as imagens geradas pelo microcontrolador. Abaixo está a foto do aplicativo:
 
-![image](https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/a4402aa8-267d-4bf2-bc72-8e66ba76feb0)
+<p align="center">
+  <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/a4402aa8-267d-4bf2-bc72-8e66ba76feb0">
+</p>
 
 Para receber os comandos de abrir/fechar o portão, configurei no aplicativo o serviço de envio de mensagens do Firebase, conforme ilustrado abaixo:
 
-![image](https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/98cb3e4d-4fa9-4493-99a0-1ddcaa0d7192)
+<p align="center">
+  <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/98cb3e4d-4fa9-4493-99a0-1ddcaa0d7192">
+</p>
 
 Para validar o funcionamento deste serviço, utilizando o softaware Postman simulando o envio de requisição HTTPS ao Firebase, e este por sua vez direciona a mensagem ao aplicativo. A próxima imagem mostra um exemplo desta comunicação.
 
-![image](https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/8870520b-e316-47cd-b078-2b8f8d4a584d)
+<p align="center">
+  <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/8870520b-e316-47cd-b078-2b8f8d4a584d">
+</p>
 
 Após validar o funcionamento da comunicação, foi feito o desenvolvimento desta requisição no microcontrolador. Na sequência, desenvolvi no aplicativo o envio de uma requisição para o microcontrolador no momento que o usuário clicar no botão "abrir/fechar", e no microcontrolador o recebimento desta mensagem. As figuras a seguir ilustram o código do smartphone e a confirmação do recebimento dela no microcontrolador, consequentemente:
 
-![image](https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/b449ed27-722a-4d47-97af-85bca2e961ca)
+<p align="center">
+  <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/b449ed27-722a-4d47-97af-85bca2e961ca">
+</p>
 
-![image](https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/8b656695-8665-4ce1-96fc-8d357f658a01)
-
-
+<p align="center">
+  <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/8b656695-8665-4ce1-96fc-8d357f658a01">
+</p>
 
 # REFERÊNCIAS
 
