@@ -145,6 +145,8 @@ c) Fazer a análise/processamento das imagens em um servidor externo (custo maio
 
 # REFERÊNCIAS
 
+<https://github.com/joachimBurket/esp32-opencv>
+
 <https://github.com/lemariva/micropython-camera-driver>
 
 <https://iot.stackexchange.com/questions/6220/esp32-cam-unable-to-use-micropython-and-connect-to-the-esp>
