@@ -117,7 +117,7 @@ Para validar o funcionamento deste serviço, utilizando o softaware Postman simu
   <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/8870520b-e316-47cd-b078-2b8f8d4a584d">
 </p>
 
-Após validar o funcionamento da comunicação, foi feito o desenvolvimento desta requisição no microcontrolador. Na sequência, desenvolvi no aplicativo o envio de uma requisição para o microcontrolador no momento que o usuário clicar no botão "abrir/fechar", e no microcontrolador o recebimento desta mensagem. As figuras a seguir ilustram o código do smartphone e a confirmação do recebimento dela no microcontrolador, consequentemente:
+Após validar o funcionamento da comunicação, foi feito o desenvolvimento desta requisição no microcontrolador. Na sequência, desenvolvi no aplicativo o envio de uma requisição (não segura) para o microcontrolador no momento que o usuário clicar no botão "abrir/fechar", e no microcontrolador o recebimento desta mensagem. As figuras a seguir ilustram o código do smartphone e a confirmação do recebimento dela no microcontrolador, consequentemente:
 
 <p align="center">
   <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/b449ed27-722a-4d47-97af-85bca2e961ca">
@@ -127,7 +127,27 @@ Após validar o funcionamento da comunicação, foi feito o desenvolvimento dest
   <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/8b656695-8665-4ce1-96fc-8d357f658a01">
 </p>
 
+## 5.3 Processamento das imagens
+
+Com a comunicação praticamente completa, restou a parte mais importante deste projeto por último, o reconhecimento dos estados (aberto e fechado) do portão. Para isso, foi inicialmente desenvolvida uma API em python para validação da análise, utilizando a biblioteca Opencv, que comparava a atual imagem com outras duas, uma do portão aberto e outra do portão fechado. A biblioteca se mostrou eficaz, porém para uma redução nos custos, o ideal seria que essa comparação fosse realizada dentro do microcontrolador, e não de um servidor.
+
+Procurei pela mesmo biblioteca Opencv porém destinada ao esp32-cam. Encontrei, adicionei ao código do firmware, estudei alguns exemplos e iniciei o desenvolvimento. Consegui utilizar a função que trocar as cores da imagem para a escala de cinza, porém não consegui converter a imagem a um formato que me permitisse visualizar a imagem. Boa parte das funções da biblioteca oficial não estavam presentes na versão do microcontrolador e também não existe uma documentação específica para o seu uso. Então decidi tentar uma nova abordagem, instalar o micropython.
+
+Realizei diversas pesquisas para solucionar o problema que eu estava tendo ao tentar utilizar o Micropython de que a porta COM estava ocupada, porém nada funcionava. Então resolvi testar um procedimento de baixar o firmware utilizando o software Thonny na placa esp32-cam Wrover, e o procedumento funcionou. Realizei alguns testes de conectar na internet e configurar o webserver, e depois disso, etava tentando colocar dentro do firmware do Micropython tudo que eu havia feito em C/C++, e no meio desta pesquisa encontrei um relato de uma pessoa que estava com o mesmo problema que eu da porta COM ocupada, e a solução do problema era acessar as configurações do Thonny e adicionar duas linhas de código, e isso funcionou.
+
+Coloquei o Micropython na placa esp32-cam e fiz alguns testes e depois pesquisei sobre a compatibilidade com a biblioteca Opencv, porém desta vez não encontrei nem a biblioteca mas sim comentários de que não era possível utilizá-la, então retornei a estaca zero. Minhas opções agora seriam:
+
+a) Voltar a tentar utilizar a biblioteca Opencv para adaptada para o esp32;
+
+b) Procurar por uma nova biblioteca que faça um processamento de imagens dentro do esp32;
+
+c) Fazer a análise/processamento das imagens em um servidor externo (custo maior).
+
 # REFERÊNCIAS
+
+<https://github.com/lemariva/micropython-camera-driver>
+
+<https://iot.stackexchange.com/questions/6220/esp32-cam-unable-to-use-micropython-and-connect-to-the-esp>
 
 <https://esp32tutorials.com/esp32-static-fixed-ip-address-esp-idf/>
 
