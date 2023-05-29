@@ -91,7 +91,7 @@ Decidi comprar duas placas iguais (para caso uma delas queimasse durante os test
 
 Com as placas em mãos, iniciei com o plano de utilizar o Micropython, segui alguns tutoriais diferentes e em todos eles eu consegui fazer o upload do firmware, mas ao abrir o programa Thonny, sempre me deparava om a mensagem de que a porta COM estava ocupada. Tentei buscar a solução deste problema por aproximadamente três dias, desisti e segui por um outro caminho, programar em C/C++ utilizando o Visual Studio Code.
 
-Com o Visual Studio Code, consegui rodar alguns exemplos, testei o uso da extensão PlataformIO e também da ESP-IDF, porém diversas vezes me deparava com o problema de do Software travar o carregamento e consequentemente me atrasando no desenvolvimento.
+Com o Visual Studio Code, consegui rodar alguns exemplos, testei o uso da extensão PlataformIO e também da ESP-IDF, porém diversas vezes me deparava com o problema de o software travar o carregamento e consequentemente me atrasando no desenvolvimento.
 
 Após conversa com um colega de sala, ele sugeriu o uso da IDE ESP-IDF para desenvolver o firmware. Utilizei de alguns exemplos do Github oficial da Espressif como base para o desenvolvimento do projeto, tive aqui também alguns problemas de travamento, porém consegui resolvê-los com maior rapidez.
 
@@ -99,7 +99,7 @@ Após conversa com um colega de sala, ele sugeriu o uso da IDE ESP-IDF para dese
 
 Iniciei o desenvolvimento do firmware configurando o wifi no microcontrolador, depois configurei a câmera e webserver para visualizar as fotos e transmissão do vídeo. Quando finalizei esta etapa, iniciei o desenvolvimento da comunicação entre o microcontrolador e o smartphone.
 
-Utilizei o Visual Studio Code para desenvolver o aplicativo com o framework Flutter, que utiliza a linguagem DART. Escolhi o Flutter pois me permite desenvolver um único códicgo para ser utilizado nas plataformas Android e IOS. Criei o aplicativo com apenas um botão e que exibe em sua tela uma webview com as imagens geradas pelo microcontrolador. Abaixo está a foto do aplicativo:
+Utilizei o Visual Studio Code para desenvolver o aplicativo com o framework Flutter, que utiliza a linguagem DART. Escolhi o Flutter pois me permite desenvolver um único código para ser utilizado nas plataformas Android e IOS. Criei o aplicativo com apenas um botão e que exibe em sua tela uma webview com as imagens geradas pelo microcontrolador. Abaixo está a foto do aplicativo:
 
 <p align="center">
   <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/a4402aa8-267d-4bf2-bc72-8e66ba76feb0">
@@ -129,7 +129,7 @@ Após validar o funcionamento da comunicação, foi feito o desenvolvimento dest
 
 ## 5.3 Processamento das imagens
 
-Com a comunicação praticamente completa, restou a parte mais importante deste projeto por último, o reconhecimento dos estados (aberto e fechado) do portão. Para isso, foi inicialmente desenvolvida uma API em python para validação da análise, utilizando a biblioteca Opencv, que comparava a atual imagem com outras duas, uma do portão aberto e outra do portão fechado. A biblioteca se mostrou eficaz, porém para uma redução nos custos, o ideal seria que essa comparação fosse realizada dentro do microcontrolador, e não de um servidor.
+Com a comunicação praticamente completa, restou a parte mais importante deste projeto por último, o reconhecimento dos estados (aberto e fechado) do portão. Para isso, foi inicialmente desenvolvida uma API em python para validação da análise, utilizando a biblioteca Opencv, que comparava a atual imagem com outras duas, uma do portão aberto e outra do portão fechado. A biblioteca se mostrou eficaz, porém para uma redução nos custos, o ideal seria que essa comparação fosse realizada dentro do microcontrolador, e não em um servidor.
 
 Procurei pela mesmo biblioteca Opencv porém destinada ao esp32-cam. Encontrei, adicionei ao código do firmware, estudei alguns exemplos e iniciei o desenvolvimento. Consegui utilizar a função que trocar as cores da imagem para a escala de cinza, porém não consegui converter a imagem a um formato que me permitisse visualizar a imagem. Boa parte das funções da biblioteca oficial não estavam presentes na versão do microcontrolador e também não existe uma documentação específica para o seu uso. Então decidi tentar uma nova abordagem, instalar o micropython.
 
@@ -141,9 +141,16 @@ a) Voltar a tentar utilizar a biblioteca Opencv para adaptada para o esp32;
 
 b) Procurar por uma nova biblioteca que faça um processamento de imagens dentro do esp32;
 
-c) Fazer a análise/processamento das imagens em um servidor externo (custo maior).
+Segui pela segunda opção, encontrei a mesma biblioteca Opencv, porém em JavaScript para uso dentro de páginas web. O site https://randomnerdtutorials.com/esp32-cam-opencv-js-color-detection-tracking/ mostra um exemplo da utilização no arduino, e estou utilizando e adaptando a webpage para processar a imagem conforme minha necessidade.
+
+<p align="center">
+  <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/80c2ea23-36fb-43eb-b822-697f320a1303">
+</p>
+
 
 # REFERÊNCIAS
+
+<https://randomnerdtutorials.com/esp32-cam-opencv-js-color-detection-tracking/>
 
 <https://github.com/joachimBurket/esp32-opencv>
 
