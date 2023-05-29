@@ -147,6 +147,14 @@ Segui pela segunda opção, encontrei a mesma biblioteca Opencv, porém em JavaS
   <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/80c2ea23-36fb-43eb-b822-697f320a1303">
 </p>
 
+Seguindo o exemplo acima, realizei um teste para identificar um objeto na cor vermelha, pois as cores vermelho, verde e azul são mais fáceis de se identificar dentro de um ambiente. Colei um material EVA da cor vermelha no portão e tentei identificá-lo nas imagens, porém sem sucesso, muito provavelmente pela baixa qualidade das fotos, distância entre o material e a câmera, e uma iluminação inadequada. Abaixo está a foto do material inserido no portão.
+
+<p align="center">
+  <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/f26d7146-f009-45f0-90c4-4510a03e911e">
+</p>
+
+A próxima etava, é fazer um novo teste para validar o processamento (no computador) da imagem acima que detecta de o objeto localizado na parte de baixo da imagem está presente ou não, e se funcionar, adaptar a lógica para inserir dentro da página web.
+
 
 # REFERÊNCIAS
 
