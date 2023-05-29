@@ -37,6 +37,7 @@
 #include "esp_http_client.h"
 #include "esp_crt_bundle.h"
 #include "esp_tls.h"
+#include "index_OCV_ColorTrack.h"
 
 #if CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
 #include "esp_crt_bundle.h"
@@ -301,8 +302,11 @@ static esp_err_t capture_handler(httpd_req_t *req){
         return ESP_FAIL;
     }
     httpd_resp_set_type(req, "image/jpeg");
-    httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
+    //httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    httpd_resp_set_hdr(req, "Content-Disposition", "form-data; name=\"imageFile\"; filename=\"capture.jpg\"");
 
     res = httpd_resp_send(req, (const char *)fb->buf, fb->len);
     esp_camera_fb_return(fb);
@@ -450,6 +454,143 @@ static void http_rest_with_hostname_path(void *pvParameters)
     vTaskDelete(NULL);
 }
 
+#define MAX_COMMAND_LENGTH 50
+#define MAX_PARAMETER_LENGTH 20
+
+char* Feedback="";
+char Command[MAX_COMMAND_LENGTH];
+char cmd[MAX_PARAMETER_LENGTH];
+char P1[MAX_PARAMETER_LENGTH];
+char P2[MAX_PARAMETER_LENGTH];
+char P3[MAX_PARAMETER_LENGTH];
+char P4[MAX_PARAMETER_LENGTH];
+char P5[MAX_PARAMETER_LENGTH];
+char P6[MAX_PARAMETER_LENGTH];
+char P7[MAX_PARAMETER_LENGTH];
+char P8[MAX_PARAMETER_LENGTH];
+char P9[MAX_PARAMETER_LENGTH];
+
+uint8_t ReceiveState = 0;
+uint8_t cmdState = 1;
+uint8_t strState = 1;
+uint8_t questionstate = 0;
+uint8_t equalstate = 0;
+uint8_t semicolonstate = 0;
+
+void getCommand(char c) {
+  if (c == '?')
+    ReceiveState = 1;
+  if ((c == ' ') || (c == '\r') || (c == '\n'))
+    ReceiveState = 0;
+
+  if (ReceiveState == 1) {
+    strncat(Command, &c, 1);
+    if (c == '=')
+      cmdState = 0;
+    if (c == ';')
+      strState++;
+    if ((cmdState == 1) && ((c != '?') || (questionstate == 1)))
+      strncat(cmd, &c, 1);
+    if ((cmdState == 0) && (strState == 1) && ((c != '=') || (equalstate == 1)))
+      strncat(P1, &c, 1);
+    if ((cmdState == 0) && (strState == 2) && (c != ';'))
+      strncat(P2, &c, 1);
+    if ((cmdState == 0) && (strState == 3) && (c != ';'))
+      strncat(P3, &c, 1);
+    if ((cmdState == 0) && (strState == 4) && (c != ';'))
+      strncat(P4, &c, 1);
+    if ((cmdState == 0) && (strState == 5) && (c != ';'))
+      strncat(P5, &c, 1);
+    if ((cmdState == 0) && (strState == 6) && (c != ';'))
+      strncat(P6, &c, 1);
+    if ((cmdState == 0) && (strState == 7) && (c != ';'))
+      strncat(P7, &c, 1);
+    if ((cmdState == 0) && (strState == 8) && (c != ';'))
+      strncat(P8, &c, 1);
+    if ((cmdState == 0) && (strState >= 9) && ((c != ';') || (semicolonstate == 1)))
+      strncat(P9, &c, 1);
+    if (c == '?')
+      questionstate = 1;
+    if (c == '=')
+      equalstate = 1;
+    if ((strState >= 9) && (c == ';'))
+      semicolonstate = 1;
+  }
+}
+
+void ExecuteCommand() {
+  TAG = "ColorDetect";
+
+  if (strcmp(cmd, "colorDetect") != 0) {  //Omit printout
+    //Serial.println("cmd= "+cmd+" ,P1= "+P1+" ,P2= "+P2+" ,P3= "+P3+" ,P4= "+P4+" ,P5= "+P5+" ,P6= "+P6+" ,P7= "+P7+" ,P8= "+P8+" ,P9= "+P9);
+    //Serial.println("");
+	ESP_LOGI(TAG, "ColorDetect");
+  }
+
+  if (strcmp(cmd, "resetwifi") == 0) {
+    /*WiFi.begin(P1.c_str(), P2.c_str());
+    Serial.print("Connecting to ");
+    Serial.println(P1);
+    long int StartTime=millis();
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        delay(500);
+        if ((StartTime+5000) < millis()) break;
+    }
+    Serial.println("");
+    Serial.println("STAIP: "+WiFi.localIP().toString());
+    Feedback="STAIP: "+WiFi.localIP().toString();*/
+  }
+  else if (strcmp(cmd, "restart") == 0) {
+    //ESP.restart();
+  }
+  else if (strcmp(cmd, "cm") == 0){
+    int XcmVal = atoi(P1);
+    int YcmVal = atoi(P2);
+    ESP_LOGI(TAG,"cmd= %s", cmd);
+    ESP_LOGI(TAG,"VALXCM= %d", XcmVal);
+
+    ESP_LOGI(TAG,"cmd= %s", cmd);
+    ESP_LOGI(TAG,"VALYCM= %d", YcmVal);
+  }
+  else if (strcmp(cmd, "quality") == 0) {
+    sensor_t * s = esp_camera_sensor_get();
+    int val = atoi(P1);
+    s->set_quality(s, val);
+  }
+  else if (strcmp(cmd, "contrast") == 0) {
+    sensor_t * s = esp_camera_sensor_get();
+    int val = atoi(P1);
+    s->set_contrast(s, val);
+  }
+  else if (strcmp(cmd, "brightness") == 0) {
+    sensor_t * s = esp_camera_sensor_get();
+    int val = atoi(P1);
+    s->set_brightness(s, val);
+  }
+  else {
+    Feedback="Command is not defined.";
+  }
+  if (strcmp(Feedback, "") == 0) {
+    Feedback=Command;
+  }
+}
+
+static esp_err_t page_handler(httpd_req_t *req) {
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    return httpd_resp_send(req, INDEX_HTML, sizeof(INDEX_HTML));
+}
+
+httpd_uri_t page2_uri = {
+    .uri       = "/page",
+    .method    = HTTP_GET,
+    .handler   = page_handler,
+    .user_ctx  = NULL
+};
+
 httpd_uri_t page_uri = {
     .uri       = "/ts",
     .method    = HTTP_GET,
@@ -486,12 +627,14 @@ httpd_uri_t control_uri = {
 httpd_uri_t get_uri = {
     .uri       = "/",
     .method    = HTTP_GET,
-    .handler   = control_handler,
+    .handler   = capture_handler,
     .user_ctx  = NULL
 };
 
 httpd_handle_t setup_server(void)
 {
+	TAG = "SERVER";
+
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     httpd_handle_t server = NULL;
 
@@ -503,6 +646,7 @@ httpd_handle_t setup_server(void)
         httpd_register_uri_handler(server, &control_uri);
         httpd_register_uri_handler(server, &get_uri);
         httpd_register_uri_handler(server, &uri_result);
+        httpd_register_uri_handler(server, &page2_uri);
     }
 
     return server;
@@ -685,6 +829,7 @@ camera_fb_t* get_picture()
 	return get_photo;
 }
 
+
 void main_func()
 {
     // Initialize NVS
@@ -714,7 +859,7 @@ void main_func()
     }
     // drop down frame size for higher initial frame rate
     s->set_framesize(s, FRAMESIZE_QVGA);
-
+    s->set_special_effect(s,0);
 	// Initialize SPIFFS
     init_spiffs();
 
@@ -723,7 +868,12 @@ void main_func()
 
     //Capture photo
     //while(1) {
-    capturePhotoSaveSpiffs();
+    //capturePhotoSaveSpiffs();
    //      vTaskDelay(1500);
    // }
+    //while(1)
+    //{
+    //start_server();
+    //}
+
 }
