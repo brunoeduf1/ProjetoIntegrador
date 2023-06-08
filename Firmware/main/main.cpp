@@ -5,6 +5,7 @@ extern "C"{
 	#include <sys/stat.h>
 	#include "esp_err.h"
 	#include "esp_spiffs.h"
+	#include "sdcard.h"
 }
 #include "esp_camera.h"
 #include <esp_log.h>
@@ -26,14 +27,14 @@ static const char *TAG = "APP_MAIN";
 
 using namespace cv;
 
-void process_image()
+void process_image(void *arg)
 {
 	camera_fb_t *fb = get_picture();
-	//Mat inputImage(fb->height, fb->width, CV_8UC2, fb->buf);
+	Mat inputImage(fb->height, fb->width, CV_8UC2, fb->buf);
 	//Rect roi(50, 50, 100, 100); // X, Y, largura, altura
 	//Mat cropped = inputImage(roi);
 
-	//Mat gray;
+	Mat gray;
 
 	//int width = inputImage.cols;
 	//int height = inputImage.rows;
@@ -50,7 +51,7 @@ void process_image()
 	//fb2->buf = (uint8_t*)inputImage.data;
 
 	//set_result(fb2);
-	//cvtColor(inputImage, gray, COLOR_RGB2GRAY);
+	cvtColor(inputImage, gray, COLOR_RGB2GRAY);
 	//threshold(inputImage, gray, 128, 255, THRESH_BINARY);
 
 	//bool hasObject = (thresholded) > 0);
@@ -69,9 +70,11 @@ extern "C" void app_main() {
 
 	ESP_LOGI(TAG, "***** Working ******");
 
+	save_sdcard();
+
 	//process_image();
 	//xTaskCreatePinnedToCore(process_image, "image", 1024 * 9, nullptr, 24, nullptr, 0);
-	//xTaskCreate(&process_image, "process_image", 8192, NULL, 5, NULL);
+	xTaskCreate(&process_image, "process_image", 8192, NULL, 5, NULL);
 }
 
 
