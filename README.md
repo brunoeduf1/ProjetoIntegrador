@@ -155,9 +155,19 @@ Seguindo o exemplo acima, realizei um teste para identificar um objeto na cor ve
 
 Fiz um novo código para captar as imagens do portão através do microcontrolador e salvá-las no cartão de memória. Isto me permitirá consultar as imagens salvas após processá-las para validar se o resultado está sendo o esperado.
 
-As imagens foram anexadas neste projeto, elas foram sendo capturadas em um intervalo de aproximadamente 10 minutos. Ao analisá-las, foi verificado que enquanto anoitecia, a visualização foi ficando cada vez mais prejudicada, o que deve tornar a verificação dos estados do portão ainda mais difícil.
+As imagens foram anexadas neste projeto, elas foram sendo capturadas em um intervalo de aproximadamente 10 minutos. Ao analisá-las, foi verificado que enquanto anoitecia, a visualização foi ficando cada vez mais prejudicada, o que deve tornar a verificação dos estados do portão ainda mais difícil. Abaixo estão algumas das fotos tiradas entre o final da tarde e início da noite:
 
-Ao adicionar o código que salva no cartão de memória no firmware principal, este passou a reiniciar infinitamente. Fiz alguns ajustes e voltei para uma versão de código anterior as alterações, e o loop infinito continuou. A placa passou a ter um comportamente estranho, após a cada gravação do meu código, a gravação seguinte apresentava um erro sendo necessário apagar o firmware dentro do microcontrolador e gravar novamente. Tentei trocar o cabo de gravação, porém os demais não estão funcionando na gravação do ESP32. Tentei gravar um outro firmware qualquer, e o problema não ocorreu. Como a minha outra placa de desenvolvimento queimou, comprei outras duas que devem chegar dentro de poucos dias para realizar os testes.
+<p align="center">
+  <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/dea49da5-a743-4148-9eea-e44dc9c54ce5">
+</p>
+<p align="center">
+  <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/61e7e250-6baf-439f-8b59-8bd2ea5787a2">
+</p>
+<p align="center">
+  <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/901b76bb-f163-49e4-9f87-325ba218cf47">
+</p>
+
+Ao adicionar o código que salva no cartão de memória no firmware principal, este passou a reiniciar infinitamente. Fiz alguns ajustes e voltei para uma versão de código anterior as alterações, e o loop infinito continuou. A placa passou a ter um comportamente estranho, após a cada gravação do meu código, a gravação seguinte apresentava um erro sendo necessário apagar o firmware dentro do microcontrolador e gravar novamente, porém esta alternativa não está mais funcionando pois quando tento apagar o Firmware, recebo a mensagem de erro de que a porta COM não existe. Tentei trocar o cabo de gravação, porém os demais não estão funcionando na gravação do ESP32. Tentei gravar um outro firmware qualquer, e o problema não ocorreu. Como a minha outra placa de desenvolvimento queimou, comprei outras duas que devem chegar dentro de poucos dias para realizar os testes.
 
 
 # REFERÊNCIAS
