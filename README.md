@@ -153,7 +153,11 @@ Seguindo o exemplo acima, realizei um teste para identificar um objeto na cor ve
   <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/f26d7146-f009-45f0-90c4-4510a03e911e">
 </p>
 
-A próxima etava, é fazer um novo teste para validar o processamento (no computador) da imagem acima que detecta de o objeto localizado na parte de baixo da imagem está presente ou não, e se funcionar, adaptar a lógica para inserir dentro da página web.
+Fiz um novo código para captar as imagens do portão através do microcontrolador e salvá-las no cartão de memória. Isto me permitirá consultar as imagens salvas após processá-las para validar se o resultado está sendo o esperado.
+
+As imagens foram anexadas neste projeto, elas foram sendo capturadas em um intervalo de aproximadamente 10 minutos. Ao analisá-las, foi verificado que enquanto anoitecia, a visualização foi ficando cada vez mais prejudicada, o que deve tornar a verificação dos estados do portão ainda mais difícil.
+
+Ao adicionar o código que salva no cartão de memória no firmware principal, este passou a reiniciar infinitamente. Fiz alguns ajustes e voltei para uma versão de código anterior as alterações, e o loop infinito continuou. A placa passou a ter um comportamente estranho, após a cada gravação do meu código, a gravação seguinte apresentava um erro sendo necessário apagar o firmware dentro do microcontrolador e gravar novamente. Tentei trocar o cabo de gravação, porém os demais não estão funcionando na gravação do ESP32. Tentei gravar um outro firmware qualquer, e o problema não ocorreu. Como a minha outra placa de desenvolvimento queimou, comprei outras duas que devem chegar dentro de poucos dias para realizar os testes.
 
 
 # REFERÊNCIAS
