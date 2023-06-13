@@ -173,7 +173,7 @@ Ao adicionar o código que salva no cartão de memória no firmware principal, e
   <img src="https://github.com/brunoeduf1/ProjetoIntegrador/assets/69606316/ac20ecfb-7f4f-434a-b564-ec2173fb6081">
 </p>
 
-Tentei trocar o cabo de gravação, porém os demais não estão funcionando na gravação do ESP32. Tentei gravar um outro firmware qualquer, e o problema não ocorreu. Como a minha outra placa de desenvolvimento queimou, comprei outras duas que devem chegar dentro de poucos dias para realizar os testes.
+Tentei trocar o cabo de gravação, porém os demais não estão funcionando na gravação do ESP32. Tentei gravar um outro firmware qualquer, e o problema não ocorreu. Consegui resolver o problema reiniciando o computador.
 
 
 # REFERÊNCIAS
