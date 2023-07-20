@@ -712,47 +712,47 @@ void init_spiffs()
 
 void capturePhotoSaveSpiffs()
 {
-		TAG = "capturePhotoSave";
-	    if (workInProgress == false)
-	    {
-	    	workInProgress = true;
-	    	bool ok = 0;
-	    	camera_fb_t *fb = NULL;
-	    	do{
-	    		ESP_LOGI(TAG, "Taking picture...");
+	TAG = "capturePhotoSave";
+	if (workInProgress == false)
+	{
+		workInProgress = true;
+		bool ok = 0;
+		camera_fb_t *fb = NULL;
+		do{
+			ESP_LOGI(TAG, "Taking picture...");
 
-	    		fb = esp_camera_fb_get();
-	    		get_photo = fb;
-			    if (!fb)
-			    {
-				  ESP_LOGI(TAG,"Camera capture failed");
-				  workInProgress = false;
-				  return;
-			    }
+			fb = esp_camera_fb_get();
+			get_photo = fb;
+			if (!fb)
+			{
+			  ESP_LOGI(TAG,"Camera capture failed");
+			  workInProgress = false;
+			  return;
+			}
 
-			    ESP_LOGI(TAG,"Camera capture ok");
-			    ESP_LOGI(TAG,"Picture file name: %s\n", FILE_PHOTO);
-			    FILE* file = fopen("/spiffs/photo.png", "w");
-			    if (file == NULL) {
-			        ESP_LOGE(TAG, "Failed to open file in writing mode");
-			        return;
-			    }
-			   else
-			   {
-					fwrite(fb->buf, 1, fb->len, file); // payload (image), payload length
-					ESP_LOGI(TAG,"The picture has been saved in /spiffs");
-					ESP_LOGI(TAG," - Size: %d" ,fb->len);
-					ESP_LOGI(TAG," bytes");
-			   }
+			ESP_LOGI(TAG,"Camera capture ok");
+			ESP_LOGI(TAG,"Picture file name: %s\n", FILE_PHOTO);
+			FILE* file = fopen("/spiffs/photo.png", "w");
+			if (file == NULL) {
+				ESP_LOGE(TAG, "Failed to open file in writing mode");
+				return;
+			}
+		   else
+		   {
+				fwrite(fb->buf, 1, fb->len, file); // payload (image), payload length
+				ESP_LOGI(TAG,"The picture has been saved in /spiffs");
+				ESP_LOGI(TAG," - Size: %d" ,fb->len);
+				ESP_LOGI(TAG," bytes");
+		   }
 
-			  fclose(file);
-			  esp_camera_fb_return(fb);
-			  ok = true;
+		  fclose(file);
+		  esp_camera_fb_return(fb);
+		  ok = true;
 
-	    	}while(!ok);
+		}while(!ok);
 
-	    	workInProgress = false;
-	    }
+		workInProgress = false;
+	}
 }
 
 // Take picture
@@ -868,7 +868,7 @@ void main_func()
 
     //Capture photo
     //while(1) {
-    //capturePhotoSaveSpiffs();
+    capturePhotoSaveSpiffs();
    //      vTaskDelay(1500);
    // }
     //while(1)
